@@ -18,7 +18,28 @@ function applyTheme() {
   root.style.setProperty('--radius', `${Math.max(0, Math.min(32, a.radius))}px`);
 }
 
+// Tell the service worker this window has the panel open, so the toolbar
+// button / Ctrl+Shift+Y can close it. Reconnects if the worker restarts.
+let windowId = null;
+function connectToWorker() {
+  let port;
+  try {
+    port = chrome.runtime.connect({ name: 'sidepanel' });
+  } catch {
+    return; // extension is reloading
+  }
+  if (windowId != null) port.postMessage({ type: 'hello', windowId });
+  port.onMessage.addListener((msg) => {
+    if (msg?.type === 'close') window.close();
+  });
+  port.onDisconnect.addListener(() => setTimeout(connectToWorker, 100));
+  return port;
+}
+
 async function main() {
+  windowId = (await chrome.windows.getCurrent()).id;
+  // Only the real side panel registers (opened as a normal tab, getCurrent() returns a tab).
+  if (!(await chrome.tabs.getCurrent())) connectToWorker();
   await load();
   applyTheme();
   initTodo({ panel: true });

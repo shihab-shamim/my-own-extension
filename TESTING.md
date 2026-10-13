@@ -1,9 +1,9 @@
-# Testing report — Sequoia Tab 1.5.0
+# Testing report — Sequoia Tab 1.5.1
 
 **Date:** 2026-10-13
 **Environment:** Windows 11 Pro, Chrome for Testing 148.0.7778.97 driven by Puppeteer 24. Branded Chrome 155 is installed, but it no longer accepts `--load-extension`, so automated runs use Chrome for Testing.
 **Suite:** `tests/e2e.js`, the real extension loaded unpacked
-**Result:** **252 / 252 checks passed** in the final run on the shipped 1.5.0 code: `e2e.js` 87/87, `features.js` 62/62, `gbar.js` 23/23, `gaccount.js` 34/34, `todo-layout.js` 24/24, `sidepanel.js` 22/22.
+**Result:** **259 / 259 checks passed** in the final run on the shipped 1.5.1 code: `e2e.js` 87/87, `features.js` 62/62, `gbar.js` 23/23, `gaccount.js` 34/34, `todo-layout.js` 24/24, `sidepanel.js` 29/29.
 
 ## Verified functionality (spec §10)
 
@@ -113,6 +113,14 @@ Drag by the header moves the card exactly with the mouse; drag the corner resize
 - Live sync both ways with the New Tab: add, tick and delete. Long lists scroll inside the panel and the input stays visible. The panel follows the light/dark setting.
 - The New Tab card's ▯ button opens Chrome's real side panel: confirmed by asking Chrome which pages are open (Puppeteer doesn't announce side panel targets). Also confirmed in a visible browser window.
 - Files updated on disk but extension not reloaded: the button finishes the update itself (self-reload, reopens a New Tab), and the side panel then works.
+
+## 1.5.1 Side panel on/off toggle
+
+- **Reported by you: the shortcut didn't work on a site.** Chrome had assigned Ctrl+Shift+Y correctly, but Chrome's built-in "toolbar click opens the panel" behavior only opens; with the panel already open, pressing it did nothing. The extension now handles the click/shortcut itself: open if closed, close if open, per window. An open panel keeps a connection to the service worker, reconnecting if the worker restarts, so the state is always known.
+- Verified: closing via the toggle; that the toggle tries to open when closed (Chrome refuses only because automation can't send a real click or shortcut — in real use your click/shortcut is that gesture); reopening with a real click and closing again; a to-do page open in a normal tab is never closed by the toggle.
+- The panel menu shows the shortcut and links to *Change keyboard shortcut…*.
+- New **Finish update** banner on the New Tab when the files on disk are newer than what Chrome loaded (tested).
+- Not automated: pressing the real toolbar button / Ctrl+Shift+Y. Sending real keystrokes to your desktop could hit your own windows, so I didn't.
 
 ## Not covered by automation (and why)
 

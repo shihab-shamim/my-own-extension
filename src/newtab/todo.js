@@ -17,6 +17,7 @@ let collapsed = false;
 let midnightTimer = null;
 let editingId = null;
 let panelMode = false; // true inside Chrome's side panel (sidepanel.html)
+let shortcutLabel = ''; // e.g. "Ctrl+Shift+Y", shown in the panel menu
 let windowId = null; // cached so "Open in side panel" keeps the click's user gesture
 
 try {
@@ -121,7 +122,10 @@ function menu(btn, kb) {
       { label: 'Uncheck all', icon: icon('refresh', { size: 15 }), onSelect: () => commit(items().map((t) => ({ ...t, done: false }))) },
       { sep: true },
       ...(panelMode
-        ? [{ label: 'Close side panel', icon: icon('close', { size: 15 }), onSelect: () => window.close() }]
+        ? [
+            { label: shortcutLabel ? `Close side panel (${shortcutLabel})` : 'Close side panel', icon: icon('close', { size: 15 }), onSelect: () => window.close() },
+            { label: 'Change keyboard shortcut…', icon: icon('settings', { size: 15 }), onSelect: () => chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }) },
+          ]
         : [
             { label: 'Open in side panel', icon: icon('sidebar', { size: 15 }), onSelect: openSidePanel },
             ...(box().custom ? [{ label: 'Reset size & position', icon: icon('refresh', { size: 15 }), onSelect: resetBox }] : []),
@@ -202,6 +206,7 @@ export function initTodo({ panel = false } = {}) {
     if (!collapsed) input.focus();
   });
   if (panel) {
+    chrome.commands?.getAll?.().then((cmds) => (shortcutLabel = cmds.find((c) => c.name === '_execute_action')?.shortcut || ''), () => {});
     // Side panel: full height, no moving/resizing/collapsing (Chrome sizes it).
     clear(el).append(head, body);
     render();

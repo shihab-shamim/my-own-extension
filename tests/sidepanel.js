@@ -28,7 +28,7 @@ const texts = (page) => page.$$eval('.todo-text', (e) => e.map((x) => x.textCont
   check('Shortcut: Ctrl+Shift+Y opens/closes it (changeable in chrome://extensions/shortcuts)', manifest.commands?._execute_action?.suggested_key?.default === 'Ctrl+Shift+Y');
   const behavior = await worker.evaluate(() => chrome.sidePanel.getPanelBehavior());
   const options = await worker.evaluate(() => chrome.sidePanel.getOptions({}));
-  check('Toolbar button opens the side panel', behavior.openPanelOnActionClick === true, JSON.stringify(behavior));
+  check('Toolbar button / shortcut is handled by the extension (so it can toggle)', behavior.openPanelOnActionClick === false, JSON.stringify(behavior));
   check('Side panel is enabled for every site', options.enabled === true && options.path === 'sidepanel.html', JSON.stringify(options));
 
   // ---- the panel page
@@ -85,7 +85,7 @@ const texts = (page) => page.$$eval('.todo-text', (e) => e.map((x) => x.textCont
   await sleep(200);
   const pItems = await panel.$$eval('.menu .menu-item', (m) => m.map((x) => x.textContent));
   await panel.keyboard.press('Escape');
-  check('Panel menu offers "Close side panel"', pItems.includes('Close side panel') && !pItems.includes('Hide to-do list'), pItems.join('|'));
+  check('Panel menu offers "Close side panel" (with the shortcut) and "Change keyboard shortcut…"', pItems.some((t) => t.startsWith('Close side panel')) && pItems.includes('Change keyboard shortcut…') && !pItems.includes('Hide to-do list'), pItems.join('|'));
 
   // theme follows settings
   await panel.evaluate(async () => { const { settings } = await chrome.storage.local.get('settings'); settings.appearance.theme = 'light'; await chrome.storage.local.set({ settings }); });
@@ -118,6 +118,51 @@ const texts = (page) => page.$$eval('.todo-text', (e) => e.map((x) => x.textCont
     isOpen = await panelOpen();
   }
   check('Clicking it opens Chrome’s side panel with the to-do list', isOpen);
+
+  // ---- toggle: the same action (toolbar button / Ctrl+Shift+Y) opens AND closes.
+  // Chrome only allows *opening* during a real user action (click/shortcut),
+  // which automation can't produce, so "open" is verified by the attempt.
+  const winId = await ntp.evaluate(async () => (await chrome.windows.getCurrent()).id);
+  const realPanelOpen = async (exclude = []) => (await cdp.send('Target.getTargets')).targetInfos.some((t) => t.type === 'page' && t.url.endsWith('/sidepanel.html') && !exclude.includes(t.targetId));
+  const waitFor = async (want, exclude) => {
+    for (let i = 0; i < 24; i++) {
+      if ((await realPanelOpen(exclude)) === want) return true;
+      await sleep(250);
+    }
+    return false;
+  };
+  await sleep(800); // let the panel register with the service worker
+  await worker.evaluate((id) => self.__sequoiaTogglePanel({ windowId: id }), winId);
+  check('Toggle: pressing it while the panel is open closes it', await waitFor(false));
+  const swLog = [];
+  (await worker.current()).on('console', (m) => swLog.push(m.text()));
+  await worker.evaluate((id) => self.__sequoiaTogglePanel({ windowId: id }), winId);
+  await sleep(800);
+  check('Toggle: pressing it while closed asks Chrome to open it (Chrome requires your real click/shortcut, which automation can’t send)', swLog.some((t) => /could not open the side panel: .*user gesture/.test(t)), swLog.join(' | '));
+  // reopen with a real click (the New Tab button) and close again with the toggle
+  await ntp.bringToFront();
+  await ntp.click('.todo-head .todo-side');
+  check('Toggle: reopened by a real click', await waitFor(true));
+  await sleep(800);
+  await worker.evaluate((id) => self.__sequoiaTogglePanel({ windowId: id }), winId);
+  check('Toggle: and closed again', await waitFor(false));
+
+  // the panel page opened as a normal tab must not be mistaken for the panel
+  const asTab = await browser.newPage();
+  await asTab.goto(`chrome-extension://${extId}/sidepanel.html`);
+  await asTab.waitForSelector('.todo-input');
+  await sleep(600);
+  const tabTargetId = asTab.target()._targetId;
+  await ntp.bringToFront();
+  await ntp.click('.todo-head .todo-side');
+  await waitFor(true, [tabTargetId]);
+  await sleep(800);
+  await worker.evaluate((id) => self.__sequoiaTogglePanel({ windowId: id }), winId);
+  const closedReal = await waitFor(false, [tabTargetId]);
+  check('Toggle: closes the real panel but never a to-do page open in a normal tab', closedReal && !asTab.isClosed() && (await asTab.evaluate(() => !!document.querySelector('.todo-input'))));
+  await asTab.close();
+  errors.splice(0, errors.length, ...errors.filter((e) => !/user gesture/.test(e))); // the expected refusal above
+
   const relevantA = errors.filter((e) => !/net::ERR_ABORTED|ERR_NAME_NOT_RESOLVED/.test(e));
   check('No console errors (part 1)', relevantA.length === 0, relevantA.join('\n'));
   await browser.close();
@@ -143,7 +188,13 @@ const texts = (page) => page.$$eval('.todo-text', (e) => e.map((x) => x.textCont
   await p.waitForSelector('#w-todo .todo-side');
   await sleep(600);
   check('(setup) older install has no side panel API yet', await p.evaluate(() => !chrome.sidePanel));
+  check('(setup) no update banner while files match', !(await p.$('.update-banner')));
   fs.writeFileSync(mPath, full); // the update lands on disk
+  await p.reload();
+  await p.waitForSelector('#w-todo .todo-side');
+  await sleep(800);
+  const banner = await p.$eval('.update-banner', (b) => b.textContent).catch(() => '');
+  check('New Tab notices the update on disk and offers "Finish update"', /is ready\./.test(banner) && /Finish update/.test(banner), banner);
   const reopened = new Promise((resolve) => browser.on('targetcreated', (t) => t.type() === 'page' && resolve(t)));
   await p.click('.todo-head .todo-side').catch(() => {});
   const t2 = await Promise.race([reopened, sleep(10000).then(() => null)]);

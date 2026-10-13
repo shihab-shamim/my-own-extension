@@ -10,8 +10,9 @@ Your 10 existing New Tab shortcuts (All Plugings, My plugin, Gmail, bplugins mai
 
 Your to-do list can also live in **Chrome's side panel**, on the right of any website. It stays open while you switch tabs and browse, and you can close it and bring it back any time:
 
-- **Open:** click the Sequoia Tab toolbar button, press **Ctrl+Shift+Y** (changeable at `chrome://extensions/shortcuts`), or use the ▯ button or ⋯ → *Open in side panel* on the New Tab to-do card.
-- **Close:** the same button or shortcut, the panel's ✕, or ⋯ → *Close side panel*.
+- **Open / close (toggle):** click the Sequoia Tab toolbar button or press **Ctrl+Shift+Y**. Press once to open and again to close, on any site. You can also (changeable at `chrome://extensions/shortcuts`) use the ▯ button or ⋯ → *Open in side panel* on the New Tab to-do card.
+- **Close:** the same button or shortcut, the panel's ✕, or ⋯ → *Close side panel*. The panel's ⋯ menu shows your shortcut and has *Change keyboard shortcut…*.
+- **Updating an unpacked copy:** when the files on disk are newer than what Chrome loaded, the New Tab shows **Finish update**. One click reloads the extension and reopens a New Tab.
 - It's the same list as on the New Tab. Adding, ticking, editing and deleting tasks updates both instantly.
 - It uses Chrome's own side panel (`sidePanel` permission, no install warning). Nothing is injected into websites, and it works on every page, including Chrome's own pages.
 - Pin the extension (puzzle icon → 📌) to keep the toolbar button handy.
