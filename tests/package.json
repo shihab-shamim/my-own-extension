@@ -1,0 +1,11 @@
+{
+  "name": "sequoia-tab-tests",
+  "private": true,
+  "description": "End-to-end tests for Sequoia Tab (runs in Chrome for Testing via Puppeteer)",
+  "scripts": {
+    "test": "node e2e.js"
+  },
+  "devDependencies": {
+    "puppeteer": "^24.0.0"
+  }
+}

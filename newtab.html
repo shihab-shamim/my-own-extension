@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>New Tab</title>
+    <link rel="icon" href="icons/icon32.png" />
+    <link rel="stylesheet" href="styles/newtab.css" />
+    <!-- Paints the last wallpaper synchronously to avoid a flash on open. -->
+    <script src="src/newtab/boot.js"></script>
+    <script type="module" src="src/newtab/main.js"></script>
+  </head>
+  <body>
+    <div id="wallpaper" class="wallpaper" aria-hidden="true">
+      <div class="wall-layer" data-layer="a"></div>
+      <div class="wall-layer" data-layer="b"></div>
+      <div class="wall-overlay"></div>
+    </div>
+
+    <a class="skip-link" href="#search-input">Skip to search</a>
+
+    <nav id="bookmarks-bar" class="bookmarks-bar glass" aria-label="Bookmarks" hidden></nav>
+
+    <main id="stage" class="stage" aria-label="New Tab">
+      <section id="w-clock" class="widget widget-clock" aria-label="Clock" hidden></section>
+      <section id="w-search" class="widget widget-search" role="search" hidden></section>
+      <section id="w-shortcuts" class="widget widget-shortcuts" aria-label="Shortcuts" hidden></section>
+    </main>
+
+    <footer class="corner corner-left" id="attribution" hidden></footer>
+    <div class="corner corner-right" id="corner-actions"></div>
+
+    <nav id="dock" class="dock" aria-label="Dock" hidden></nav>
+
+    <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+  </body>
+</html>
