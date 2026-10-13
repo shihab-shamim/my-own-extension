@@ -23,7 +23,7 @@ export function validCustomTemplate(t) {
   }
 }
 
-function engine() {
+export function engine() {
   const s = store.settings.search;
   const e = SEARCH_ENGINES.find((x) => x.id === s.engine) || SEARCH_ENGINES[0];
   if (e.id === 'custom') {
@@ -48,7 +48,8 @@ function renderEngineBtn() {
   input.placeholder = e.id === 'default' ? 'Search the web or type a URL' : `Search ${e.label} or type a URL`;
 }
 
-async function submit(text, newTab) {
+// Search with the configured engine, or open the text directly if it is an address.
+export async function runSearch(text, newTab = false) {
   const q = text.trim();
   if (!q) return;
   if (looksLikeUrl(q)) {
@@ -85,13 +86,13 @@ export function initSearch() {
   const form = h('form', { class: 'search-form glass', novalidate: true }, engineBtn, input, submitBtn);
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    submit(input.value, false);
+    runSearch(input.value, false);
   });
   input.addEventListener('keydown', (e) => {
     // Alt+Enter opens in a new tab, like the omnibox.
     if (e.key === 'Enter' && (e.altKey || e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      submit(input.value, true);
+      runSearch(input.value, true);
     } else if (e.key === 'Escape' && input.value) {
       input.value = '';
     } else if (e.key === 'Escape') {

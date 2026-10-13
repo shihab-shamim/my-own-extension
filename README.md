@@ -6,6 +6,45 @@ It only changes the New Tab page. Chrome's toolbar, address bar, tabs and settin
 
 Your 10 existing New Tab shortcuts (All Plugings, My plugin, Gmail, bplugins mail, Present sheet, Freemius, ClickUp, Support Desk, Daily Workshit, mail swarm) come pre-loaded, in the same order and with the same URLs.
 
+### Real Google account info (v1.3, optional)
+
+Click the round avatar, then **Connect Google account**:
+
+- Chrome asks you once for permission to read your signed-in accounts from `accounts.google.com`. This is an *optional* permission. It isn't requested at install, and nothing is fetched until you approve.
+- After that, the avatar shows your **real Google photo**. The card looks like Chrome's own: your photo, **name and email** with a ⌃ toggle, your **other signed-in accounts** (click one to make Gmail and the apps open it), **Add another account**, **Sign out of all accounts**, a **Manage your Google Account** pill, and **Disconnect from Sequoia Tab**.
+- If the extension was updated but not reloaded, the card says so and offers **Open chrome://extensions**. If Google can't be reached, it shows **Try again** and the error details.
+- The info comes from the same place Chrome reads it for its own account menu. It is cached on this computer only, for 15 minutes; new tabs reuse it. It is never sent anywhere else and is never included in backups. **Disconnect** deletes it and gives the permission back. If Google can't be reached, the last known account stays.
+- You can also connect or disconnect in Settings → Widgets → Google bar. If you don't connect, the avatar uses a photo you uploaded instead.
+
+### Google bar (v1.2)
+
+The top-right corner works like Chrome's own New Tab page:
+
+- **Gmail** and **Images** links.
+- A **⋮⋮⋮ Google apps** grid with Account, Search, Maps, YouTube, Play, News, Gmail, Meet, Chat, Contacts, Drive, Calendar, Translate, Photos, Docs, Sheets, Slides, Keep, Gemini, Forms and Sites. It works with the keyboard: arrow keys move, and Esc closes.
+- A round **account avatar**. Its menu has *Manage your Google Account*, *Switch account* and Gmail.
+
+Set it up in Settings → Widgets → **Google bar**:
+
+- **Show or hide** the bar. The bookmarks bar uses the space when it's hidden.
+- **Choose which signed-in Google account** the links open (u/0, u/1…).
+- **Upload a profile photo.** It's cropped to a circle and stored only on this computer.
+
+Why upload your own photo? Showing your real Google profile picture would require signing the extension into your Google account (OAuth) and adding new permissions, so Sequoia Tab doesn't do that. The bar is made of plain links, with no Google scripts and no new permissions. App icons come from Chrome's local favicon cache.
+
+### Productivity features (v1.1)
+
+- **Shortcut folders (Launchpad-style).** Drop one tile onto the middle of another to make a folder, or use a tile's ⋯ menu → **Add to folder**. Click a folder to open it, then rename it, add shortcuts, reorder them, or move them back out. A folder that becomes empty disappears. **Ungroup** puts a folder's shortcuts back on the page.
+- **Open all together.** A folder's **Open all** button (or ⋯ → *Open all in new tabs*) opens every shortcut in it as background tabs, so you can open Gmail, Support Desk, ClickUp and Freemius in one click. More than 15 tabs asks you first.
+- **To-do list ("Today").** Add tasks with Enter, tick them off, double-click to edit, and delete them. Turn on the ↻ button to make a task **daily**: daily tasks un-tick themselves every morning. *Clear completed* removes finished one-off tasks. The card floats at the top right only when there's free space beside the clock, search and tiles; otherwise it sits below them. You can collapse it or hide it in Settings → Widgets.
+  - **Move it:** drag the header or the ⠿ grip anywhere on the page.
+  - **Resize it:** drag the bottom-right corner (from 240×140 px up to 640 px wide). The list scrolls when the card is short.
+  - Your position and size are saved and used in every tab, and the card is always kept inside the window.
+  - Keyboard: focus the grip and use the arrow keys to move it, or focus the corner and use the arrow keys to resize it. Shift moves in bigger steps.
+  - Reset with ⋯ → *Reset size & position* or by double-clicking the grip. On narrow windows the card goes back below the shortcuts.
+- **Backup.** Settings → Backup & Privacy → **Export backup** downloads a JSON file with your settings, shortcuts and folders, dock, favorites and to-dos. **Import backup…** restores it after asking you to confirm. The backup never includes your Unsplash key or uploaded photos. Imported data is checked the same way as data you type in (unsafe links are removed).
+- **Command palette (Ctrl+K / ⌘K, or the ⌘ button bottom-right).** One box for shortcuts (including those inside folders), "Open all in <folder>", Chrome bookmarks, dock items, settings sections and actions (next wallpaper, theme, add shortcut, add task, export/import). If nothing matches, it searches the web, and an address opens directly. Use ↑/↓ and Enter; Alt+Enter opens in a new tab.
+
 ---
 
 ## Install
@@ -25,15 +64,15 @@ Click the **gear** (bottom-right) or the **Customize** icon in the dock. All cha
 |---|---|
 | Wallpaper | Source (Unsplash, My Photos, Favorites, Built-in, Gradient, Solid Color), rotation interval (1 min, 5 min, 15 min, 30 min, 1 h, Daily, Disabled), pause, *Next now*, Unsplash key, categories and keywords, uploads gallery (set default, remove), dim overlay, blur |
 | Appearance | Auto/Light/Dark theme, text colour over the wallpaper (auto-detected from brightness, or forced), glass transparency, corner radius, animation level, reduce motion |
-| Widgets | Show/hide and reorder the clock, search and shortcuts; centered or top layout; show/hide the bookmarks bar, dock and wallpaper info |
+| Widgets | Show/hide and reorder the clock, search and shortcuts; centered or top layout; show/hide the bookmarks bar, dock, to-do list and wallpaper info; Google bar (account, profile photo) |
 | Clock & Date | 12/24-hour, seconds, date format |
 | Search | Chrome default engine, Google, Bing, DuckDuckGo, Brave, Ecosia, or a custom `https://…%s` URL |
-| Shortcuts | Size, columns, labels; add, edit, reorder, remove; restore your original 10 |
+| Shortcuts | Size, columns, labels; add, edit, reorder, remove; folders (open, delete); restore your original 10 |
 | Dock | Position (bottom/left/right), icon size, magnification, auto-hide; add websites or Chrome pages, reorder, remove |
 | Bookmarks | Show the bar; show "Other" and "Mobile" folders |
-| Privacy & Reset | Permission explanations; restore default settings |
+| Backup & Privacy | Export/import a backup; permission explanations; restore default settings |
 
-**Keyboard:** `/` focuses search, `Alt+Enter` opens results in a new tab, typing an address (for example `github.com`) opens it directly. Bookmark folders open with `↓`, submenus with `→`, and `Esc` closes them. Focus a shortcut tile and press `Ctrl+Shift+←/→` to reorder it. You can also drag tiles.
+**Keyboard:** `Ctrl+K` opens the command palette, `/` focuses search, `Alt+Enter` opens results in a new tab, typing an address (for example `github.com`) opens it directly. Bookmark folders open with `↓`, submenus with `→`, and `Esc` closes them. Focus a shortcut tile and press `Ctrl+Shift+←/→` to reorder it. You can also drag tiles.
 
 ## Unsplash setup
 
@@ -46,7 +85,7 @@ How the extension uses the API:
 - It fetches 30 random photos per request (`/photos/random?count=30`) and shows them one at a time from a local queue.
 - Each time a photo becomes your wallpaper, it sends the required download ping (`download_location`).
 - Images are hotlinked from `images.unsplash.com`, as Unsplash's guidelines require. They are sized to your screen with `w=`, `q=80` and `fm=jpg`.
-- The photographer and Unsplash are credited bottom-left with `utm_source=sequoia_tab&utm_medium=referral` links. This credit always shows for Unsplash photos, even when wallpaper info is hidden.
+- The photographer and Unsplash are credited bottom-left with `utm_source=sequoia_tab&utm_medium=referral` links. This is on by default. Settings → Widgets → **Unsplash photo credit** can turn it off, but that breaks Unsplash's API rules and may get your key revoked.
 
 **Rate limits:** demo apps get 50 requests per hour. Each wallpaper change costs about 1.03 requests (the download ping plus 1/30 of a batch). If you want 1-minute rotation, request production approval from Unsplash (5,000 requests per hour) or use a 5-minute or longer interval. Rotation only runs while a New Tab is open, so real usage is usually far lower. If you hit the limit, the current wallpaper stays and the extension waits 15 minutes before retrying.
 
@@ -63,16 +102,20 @@ How the extension uses the API:
 | `bookmarks` | **Reads** your bookmarks bar and folders. The code never calls `create`, `update`, `move` or `remove`. Chrome's install prompt says "read and change" because it has no read-only bookmarks permission. |
 | `alarms` | Wakes the service worker to rotate wallpapers on schedule |
 | `favicon` | Shows site icons from Chrome's local favicon cache (no requests to the sites) |
+| `declarativeNetRequestWithHostAccess` | No install warning, and it only works on sites you granted. For the single account-list request, it sends `Origin: https://www.google.com` (exactly what Chrome's own account menu sends) instead of the extension's origin, because Google rejects (403) requests carrying an extension origin. It is limited to that one URL, POST requests and this extension's own requests |
+| `https://accounts.google.com/*` (**optional**) | Only if you click *Connect Google account*: reads your signed-in Google accounts (name, email, photo) to show them in the account card. It isn't requested at install, and *Disconnect* removes it |
 | `search` | Lets *Chrome default* search with the engine you chose in Chrome settings |
 
 No host permissions, no `tabs`, no `history`, no content scripts. Uploaded photos live in the extension's IndexedDB.
 
 ## Network requests
 
-The extension contacts only these hosts, and only when you use Unsplash wallpapers:
+The extension contacts only these hosts, and only when you turn on the related feature:
 
-- `api.unsplash.com` for random photos and download pings, using your key.
-- `images.unsplash.com` for the wallpaper images themselves.
+- `api.unsplash.com` for random photos and download pings, using your key (Unsplash wallpapers only).
+- `images.unsplash.com` for the wallpaper images themselves (Unsplash wallpapers only).
+- `accounts.google.com` for your signed-in account list, at most every 15 minutes or when you open the account card (only after *Connect Google account*).
+- `lh3.googleusercontent.com` for your Google profile photos (only after *Connect Google account*).
 
 There is no analytics, telemetry or remote code. Built-in wallpapers, gradients, colors and uploads work fully offline.
 
@@ -96,6 +139,8 @@ icons/                   Extension icons
 src/background.js        Service worker: seeding, alarms, messages, storage reactions
 src/lib/                 Shared modules
   defaults.js            Settings schema, defaults, your 10 shortcuts, dock defaults
+  shortcut-model.js      Pure folder/shortcut operations + import validation
+  todo-model.js          To-do helpers (daily reset, validation)
   storage.js             chrome.storage.local helpers
   rotation.js            Wallpaper selection/rotation engine (serialised, timestamp based)
   unsplash.js            Unsplash client, sanitising, attribution helpers
@@ -103,7 +148,8 @@ src/lib/                 Shared modules
   presets.js             Built-in CSS wallpapers, colour/brightness helpers
   url.js, icons.js       URL validation/navigation, SVG icons
 src/newtab/              Page modules (main, store, wallpaper-view, clock, search,
-                         shortcuts, bookmarks, dock, menu, settings, uploads, ui…)
+                         shortcuts, folder-view, tiles, todo, palette, backup,
+                         bookmarks, dock, menu, settings, uploads, ui…)
 tests/                   Puppeteer end-to-end suite (not part of the packaged zip)
 ```
 
@@ -112,7 +158,10 @@ tests/                   Puppeteer end-to-end suite (not part of the packaged zi
 ```bash
 cd tests
 npm install        # downloads Puppeteer + Chrome for Testing
-npm test           # about 4 minutes (includes a real 1-minute rotation wait)
+npm test           # about 18 minutes: e2e.js (core, incl. a real 1-minute
+                   # rotation wait), features.js (folders, to-do, backup,
+                   # palette), gbar.js (Google bar), gaccount.js (account card),
+                   # todo-layout.js (move/resize the to-do card)
 ```
 
 Branded Chrome 137+ no longer allows `--load-extension`, so the suite uses Chrome for Testing. Unsplash success paths are mocked inside the service worker. The invalid-key test makes a real request to Unsplash.

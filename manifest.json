@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Sequoia Tab — macOS-style New Tab",
   "short_name": "Sequoia Tab",
-  "version": "1.0.0",
+  "version": "1.4.2",
   "description": "A calm, macOS-inspired New Tab page with rotating wallpapers, your Chrome bookmarks, shortcuts and a dock.",
   "minimum_chrome_version": "116",
   "icons": {
@@ -25,8 +25,18 @@
       "32": "icons/icon32.png"
     }
   },
-  "permissions": ["storage", "bookmarks", "alarms", "favicon", "search"],
+  "permissions": [
+    "storage",
+    "bookmarks",
+    "alarms",
+    "favicon",
+    "search",
+    "declarativeNetRequestWithHostAccess"
+  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
-  }
+  },
+  "optional_host_permissions": [
+    "https://accounts.google.com/*"
+  ]
 }

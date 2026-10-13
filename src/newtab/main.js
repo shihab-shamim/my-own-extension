@@ -16,6 +16,9 @@ import { openSettings } from './settings.js';
 import { checkWallpaper } from './bridge.js';
 import { toast } from './ui.js';
 import { closeAll } from './menu.js';
+import { initTodo, queueTodoLayout } from './todo.js';
+import { initPalette, openPalette } from './palette.js';
+import { initGbar, renderGbar } from './gbar.js';
 
 const root = document.documentElement;
 const stage = document.getElementById('stage');
@@ -45,12 +48,25 @@ function applyAppearance() {
 function applyLayout() {
   const w = store.settings.widgets;
   stage.dataset.align = w.align;
-  for (const id of w.order) {
-    const sec = document.getElementById(`w-${id}`);
-    stage.append(sec); // re-append in configured order
-    sec.hidden = !w.visible[id];
-  }
+  // Configured order, with the to-do card last (it floats on wide screens).
+  // Only move nodes when the order actually changed: moving a node in the DOM
+  // drops keyboard focus inside it.
+  const wanted = [...w.order.map((id) => document.getElementById(`w-${id}`)), document.getElementById('w-todo')];
+  const current = [...stage.children].filter((n) => wanted.includes(n));
+  if (wanted.some((n, i) => current[i] !== n)) for (const n of wanted) stage.append(n);
+  for (const id of w.order) document.getElementById(`w-${id}`).hidden = !w.visible[id];
   document.getElementById('bookmarks-bar').hidden = !w.visible.bookmarks;
+  const todo = document.getElementById('w-todo');
+  todo.hidden = !w.visible.todo;
+  root.dataset.todo = w.visible.todo ? 'on' : 'off';
+}
+
+let todoStarted = false;
+function ensureTodo() {
+  if (!todoStarted && store.settings.widgets.visible.todo) {
+    todoStarted = true;
+    initTodo();
+  }
 }
 
 let dueTimer = null;
@@ -80,6 +96,9 @@ async function syncWallpaper({ instant = false } = {}) {
 }
 
 function cornerActions() {
+  const pal = h('button', { type: 'button', class: 'round-btn glass', 'aria-label': 'Command palette (Ctrl+K)', title: 'Command palette (Ctrl+K)' }, icon('command', { size: 16 }));
+  pal.addEventListener('click', () => openPalette());
+  document.getElementById('corner-actions').append(pal);
   const btn = h('button', { type: 'button', class: 'round-btn glass', 'aria-label': 'Customize New Tab', title: 'Customize' }, icon('gear', { size: 17 }));
   btn.addEventListener('click', () => openSettings());
   document.getElementById('corner-actions').append(btn);
@@ -100,6 +119,9 @@ async function main() {
   renderShortcuts();
   initDock(() => openSettings());
   cornerActions();
+  ensureTodo();
+  initPalette((section) => openSettings(section));
+  initGbar((section) => openSettings(section));
   if (store.settings.widgets.visible.bookmarks) initBookmarks();
   renderAttribution();
 
@@ -114,7 +136,8 @@ async function main() {
     shortcuts: (s) => s.shortcuts,
     dock: (s) => [s.dock, s.widgets.visible.dock],
     bookmarks: (s) => [s.bookmarks, s.widgets.visible.bookmarks],
-    attribution: (s) => [s.widgets.visible.attribution, s.wallpaper.interval, s.wallpaper.paused, s.wallpaper.source],
+    attribution: (s) => [s.widgets.visible.attribution, s.wallpaper.interval, s.wallpaper.paused, s.wallpaper.source, s.wallpaper.showCredit],
+    gbar: (s) => [s.widgets.visible.gbar, s.google],
   };
   const snap = () => Object.fromEntries(Object.entries(slices).map(([k, f]) => [k, JSON.stringify(f(store.settings))]));
   let prev = snap();
@@ -130,6 +153,9 @@ async function main() {
     if (changed('dock')) renderDock();
     if (changed('bookmarks') && store.settings.widgets.visible.bookmarks) initBookmarks().then(updateBookmarks);
     if (changed('attribution')) renderAttribution();
+    if (changed('gbar')) renderGbar();
+    ensureTodo();
+    queueTodoLayout();
     scheduleDueCheck();
     prev = next;
   });

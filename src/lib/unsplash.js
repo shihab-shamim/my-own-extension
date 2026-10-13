@@ -51,6 +51,24 @@ export function sanitizePhoto(p) {
   };
 }
 
+// Validate a photo already in our stored shape (favorites from a backup file).
+export function sanitizeStoredPhoto(p) {
+  if (!p || typeof p !== 'object' || !ALLOWED_IMAGE_HOST.test(str(p.raw, 2000))) return null;
+  return {
+    id: str(p.id, 64) || 'photo',
+    raw: str(p.raw, 2000),
+    thumb: ALLOWED_IMAGE_HOST.test(str(p.thumb, 2000)) ? str(p.thumb, 2000) : str(p.raw, 2000) + '&w=400',
+    color: /^#[0-9a-f]{6}$/i.test(p.color) ? p.color : '#333333',
+    width: Number(p.width) || 0,
+    height: Number(p.height) || 0,
+    alt: str(p.alt, 200),
+    author: str(p.author, 120) || 'Unknown photographer',
+    authorUrl: ALLOWED_PAGE_HOST.test(str(p.authorUrl, 500)) ? str(p.authorUrl, 500) : 'https://unsplash.com/',
+    photoUrl: ALLOWED_PAGE_HOST.test(str(p.photoUrl, 500)) ? str(p.photoUrl, 500) : 'https://unsplash.com/',
+    downloadLocation: ALLOWED_API_HOST.test(str(p.downloadLocation, 1000)) ? str(p.downloadLocation, 1000) : '',
+  };
+}
+
 export function withUtm(url) {
   try {
     const u = new URL(url);
