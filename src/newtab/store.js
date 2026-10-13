@@ -1,7 +1,7 @@
 // Page-side state cache. Keeps every open New Tab in sync through
 // chrome.storage.onChanged, and ignores the echo of its own writes.
 
-import { KEYS, ensureSeeded, getSettings, getShortcuts, getDock, getFavorites, getWallpaperState, set } from '../lib/storage.js';
+import { KEYS, ensureSeeded, getSettings, getShortcuts, getDock, getFavorites, getWallpaperState, getTodos, set } from '../lib/storage.js';
 import { mergeSettings } from '../lib/defaults.js';
 
 export const store = {
@@ -10,6 +10,7 @@ export const store = {
   dock: [],
   favorites: [],
   wallpaper: null,
+  todos: { items: [], day: '' },
 };
 
 const listeners = new Map(); // topic -> Set<fn>
@@ -33,14 +34,15 @@ export function emit(topic) {
 
 export async function load() {
   await ensureSeeded();
-  const [settings, shortcuts, dock, favorites, wallpaper] = await Promise.all([
+  const [settings, shortcuts, dock, favorites, wallpaper, todos] = await Promise.all([
     getSettings(),
     getShortcuts(),
     getDock(),
     getFavorites(),
     getWallpaperState(),
+    getTodos(),
   ]);
-  Object.assign(store, { settings, shortcuts, dock, favorites, wallpaper });
+  Object.assign(store, { settings, shortcuts, dock, favorites, wallpaper, todos });
   chrome.storage.onChanged.addListener(onStorageChanged);
   return store;
 }
@@ -88,22 +90,34 @@ export function replaceSettings(next) {
   return write(KEYS.settings, store.settings);
 }
 
+// Each save writes before notifying listeners, so if a listener saves again
+// in response, that newer write is the one that ends up in storage.
 export function saveShortcuts(list) {
   store.shortcuts = list;
+  const p = write(KEYS.shortcuts, list);
   emit('shortcuts');
-  return write(KEYS.shortcuts, list);
+  return p;
 }
 
 export function saveDock(list) {
   store.dock = list;
+  const p = write(KEYS.dock, list);
   emit('dock');
-  return write(KEYS.dock, list);
+  return p;
+}
+
+export function saveTodos(todos) {
+  store.todos = todos;
+  const p = write(KEYS.todos, todos);
+  emit('todos');
+  return p;
 }
 
 export function saveFavorites(list) {
   store.favorites = list;
+  const p = write(KEYS.favorites, list);
   emit('favorites');
-  return write(KEYS.favorites, list);
+  return p;
 }
 
 function onStorageChanged(changes, area) {
@@ -133,6 +147,11 @@ function onStorageChanged(changes, area) {
   if (changes[KEYS.favorites] && !isEcho(KEYS.favorites)) {
     store.favorites = changes[KEYS.favorites].newValue || [];
     emit('favorites');
+  }
+  if (changes[KEYS.todos] && !isEcho(KEYS.todos)) {
+    const v = changes[KEYS.todos].newValue;
+    store.todos = { items: Array.isArray(v?.items) ? v.items : [], day: v?.day || '' };
+    emit('todos');
   }
   if (changes[KEYS.wallpaper]) {
     store.wallpaper = { ...store.wallpaper, ...(changes[KEYS.wallpaper].newValue || {}) };

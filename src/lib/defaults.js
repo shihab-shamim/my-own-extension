@@ -57,6 +57,9 @@ export const DEFAULT_SETTINGS = {
     uploadsDefaultId: null,
     overlay: 18,
     blur: 0,
+    // Unsplash's API guidelines require crediting the photographer. Turning
+    // this off is the user's choice and may get their API key revoked.
+    showCredit: true,
   },
   appearance: {
     theme: 'auto', // auto | light | dark
@@ -75,8 +78,12 @@ export const DEFAULT_SETTINGS = {
       bookmarks: true,
       dock: true,
       attribution: true,
+      todo: true,
+      gbar: true,
     },
     align: 'center', // center | top
+    // To-do card placement once the user drags/resizes it (px; h 0 = fit content).
+    todoBox: { custom: false, x: 0, y: 0, w: 300, h: 0 },
   },
   clock: {
     format: '12', // 12 | 24
@@ -101,6 +108,10 @@ export const DEFAULT_SETTINGS = {
   },
   bookmarks: {
     showOther: true,
+  },
+  google: {
+    authuser: 0, // which signed-in Google account the links open (u/0, u/1…)
+    photo: '', // small data: URL the user uploaded for the avatar
   },
 };
 

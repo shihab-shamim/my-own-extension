@@ -9,6 +9,9 @@ import { needsTabsApi, openUrl } from '../lib/url.js';
 let stack = []; // open menus, root first
 let rootAnchor = null;
 let onRootClose = null;
+// Menus opened from inside a modal <dialog> must live in that dialog, or the
+// modal would make them inert.
+let host = null;
 
 function position(menu, rect, mode) {
   const vw = window.innerWidth;
@@ -135,7 +138,7 @@ function render(items, level, label) {
   if (!list.length) ul.append(h('li', { class: 'menu-empty', role: 'none' }, '(empty)'));
   for (const item of list) ul.append(buildItem(item, level));
   ul.addEventListener('keydown', (e) => onKey(e, level));
-  document.body.append(ul);
+  (host || document.body).append(ul);
   return ul;
 }
 
@@ -228,6 +231,7 @@ export function openMenu(anchor, items, { label, placement = 'below', focusFirst
   const wasSame = rootAnchor === anchor;
   closeAll();
   if (wasSame) return; // clicking the trigger again toggles it closed
+  host = (anchor instanceof Element && anchor.closest('dialog[open]')) || document.body;
   const el = render(items, 0, label);
   position(el, anchor.getBoundingClientRect(), placement);
   stack.push({ el, parentItem: null });

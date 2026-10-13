@@ -13,7 +13,14 @@ import { store, on, updateSettings, replaceSettings, saveShortcuts, saveDock, sa
 import { modal, toast, confirmDialog, toggle, segmented, selectBox, range, row, group } from './ui.js';
 import { checkWallpaper, nextWallpaper, testUnsplashKey } from './bridge.js';
 import { addUpload, deleteWallpaper, listWallpapers, MAX_UPLOADS } from './uploads.js';
-import { editLinkDialog, siteIcon, MAX_SHORTCUTS } from './shortcuts.js';
+import { MAX_SHORTCUTS, deleteFolder } from './shortcuts.js';
+import { siteIcon } from './site-icon.js';
+import { editLinkDialog } from './link-dialog.js';
+import { openFolder } from './folder-view.js';
+import { isFolder, countLinks } from '../lib/shortcut-model.js';
+import { normalizeUrl } from '../lib/url.js';
+import { exportBackup, importBackupFile } from './backup.js';
+import { PHOTO_RE, accountStatus, connectFromSettings, disconnectFromSettings } from './gbar.js';
 import { appFace } from './dock.js';
 import { validCustomTemplate } from './search.js';
 import { withUtm } from '../lib/unsplash.js';
@@ -27,7 +34,7 @@ const SECTIONS = [
   { id: 'shortcuts', label: 'Shortcuts', icon: 'globe', color: '#34c759' },
   { id: 'dock', label: 'Dock', icon: 'downloads', color: '#64d2ff' },
   { id: 'bookmarks', label: 'Bookmarks', icon: 'bookmarks', color: '#ffcc00' },
-  { id: 'about', label: 'Privacy & Reset', icon: 'info', color: '#8e8e93' },
+  { id: 'about', label: 'Backup & Privacy', icon: 'backup', color: '#8e8e93' },
 ];
 
 let dlg = null;
@@ -509,9 +516,87 @@ function widgetsSection() {
     group('Other',
       row('Bookmarks bar', k('w-bm', toggle(wd.visible.bookmarks, (v) => upd((s) => (s.widgets.visible.bookmarks = v)), 'Show bookmarks bar'))),
       row('Dock', k('w-dock', toggle(wd.visible.dock, (v) => upd((s) => (s.widgets.visible.dock = v)), 'Show dock'))),
-      row('Wallpaper info & controls', k('w-attr', toggle(wd.visible.attribution, (v) => upd((s) => (s.widgets.visible.attribution = v)), 'Show wallpaper info')), 'Photo credits for Unsplash images always stay visible, as Unsplash requires.'),
+      row('To-do list', k('w-todo', toggle(wd.visible.todo, (v) => upd((s) => (s.widgets.visible.todo = v)), 'Show to-do list')), 'Floats on the right on wide windows; daily tasks reset each morning.'),
+      row('Wallpaper info & controls', k('w-attr', toggle(wd.visible.attribution, (v) => upd((s) => (s.widgets.visible.attribution = v)), 'Show wallpaper info')), 'Next / pause / favorite buttons and the wallpaper name (bottom-left).'),
+      row('Unsplash photo credit', k('w-credit', toggle(S().wallpaper.showCredit !== false, (v) => upd((s) => (s.wallpaper.showCredit = v)), 'Show Unsplash photo credit')), 'Unsplash’s API rules require crediting the photographer. Turning this off breaks those rules and Unsplash may revoke your Access Key — your choice.'),
     ),
+    googleBarGroup(),
   ];
+}
+
+// Square-crop and shrink an uploaded avatar to a small data: URL.
+async function avatarDataUrl(file) {
+  if (!file || !/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error('Choose a JPG, PNG or WebP image.');
+  if (file.size > 15 * 1024 * 1024) throw new Error('That image is larger than 15 MB.');
+  let bmp;
+  try {
+    bmp = await createImageBitmap(file);
+  } catch {
+    throw new Error('That image couldn’t be read.');
+  }
+  const side = Math.min(bmp.width, bmp.height);
+  const canvas = new OffscreenCanvas(128, 128);
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, 128, 128);
+  bmp.close();
+  const blob = await canvas.convertToBlob({ type: 'image/webp', quality: 0.85 });
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(new Error('That image couldn’t be read.'));
+    r.readAsDataURL(blob);
+  });
+}
+
+function googleBarGroup() {
+  const g = S().google;
+  const accounts = Array.from({ length: 6 }, (_, i) => ({ id: String(i), label: i === 0 ? 'First signed-in account (u/0)' : `Account ${i + 1} (u/${i})` }));
+  const preview = h('span', { class: 'gavatar', style: { cursor: 'default' }, 'aria-hidden': 'true' },
+    PHOTO_RE.test(g.photo || '') ? h('img', { class: 'gavatar-img', src: g.photo, alt: '' }) : h('span', { class: 'gavatar-default' }, icon('person', { size: 18 })));
+  const fileIn = h('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp', hidden: true });
+  const choose = h('button', { type: 'button', class: 'btn small' }, icon('upload', { size: 14 }), g.photo ? 'Change photo…' : 'Upload photo…');
+  choose.addEventListener('click', () => fileIn.click());
+  fileIn.addEventListener('change', async () => {
+    const file = fileIn.files?.[0];
+    fileIn.value = '';
+    try {
+      const url = await avatarDataUrl(file);
+      await upd((s) => (s.google.photo = url), { immediate: true });
+      render();
+    } catch (err) {
+      toast(err.message, { error: true });
+    }
+  });
+  const removeBtn = g.photo ? h('button', { type: 'button', class: 'btn small' }, 'Remove') : null;
+  removeBtn?.addEventListener('click', async () => {
+    await upd((s) => (s.google.photo = ''), { immediate: true });
+    render();
+  });
+  return group('Google bar',
+    row('Show Gmail, Images, apps & account', k('w-gbar', toggle(S().widgets.visible.gbar, (v) => upd((s) => (s.widgets.visible.gbar = v)), 'Show Google bar')), 'Top-right, like Chrome’s own New Tab page.'),
+    row('Google account for links', k('g-user', selectBox(accounts, String(g.authuser), (v) => upd((s) => (s.google.authuser = Number(v))), 'Google account')), 'If you’re signed in to several Google accounts, pick which one Gmail and the apps open.'),
+    googleAccountRow(),
+    row('Profile photo (fallback)', h('div', { class: 'row-controls' }, preview, choose, removeBtn, fileIn), 'Used when your Google account isn’t connected. Stored only on this computer.'),
+  );
+}
+
+function googleAccountRow() {
+  const st = accountStatus();
+  const btn = h('button', { type: 'button', class: 'btn small' + (st.connected ? '' : ' primary') }, st.connected ? 'Disconnect' : 'Connect…');
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    if (st.connected) {
+      await disconnectFromSettings();
+      toast('Google account disconnected. Its info was removed from this computer.');
+    } else if (!(await connectFromSettings())) {
+      toast('Not connected — Chrome’s permission was not granted.', { error: true });
+    }
+    render();
+  });
+  const who = st.connected ? (st.current ? `Connected · ${st.current.email}` : 'Connected · not signed in to Google') : 'Not connected';
+  return row(h('span', {}, 'Real Google photo, name & email', h('span', { class: 'hint', 'data-k': 'g-acct-status' }, who)), k('g-acct', btn),
+    'Optional. Reads your signed-in accounts from accounts.google.com after Chrome asks you once. Nothing is sent anywhere else, and backups never include it.');
 }
 
 // ---------------------------------------------------------------- clock
@@ -591,11 +676,19 @@ function linkList(items, { save, kind, max, iconFor }) {
     const del = h('button', { type: 'button', class: 'icon-btn', 'aria-label': `Remove ${it.title}` }, icon('trash', { size: 14 }));
     up.addEventListener('click', () => mv(-1));
     down.addEventListener('click', () => mv(1));
-    edit.addEventListener('click', () =>
-      editLinkDialog({ title: 'Edit', item: it, onSave: (data) => save(items.map((x) => (x.id === it.id ? { ...data, id: it.id, glyph: data.url === it.url ? it.glyph : undefined } : x))) }),
-    );
-    del.addEventListener('click', () => save(items.filter((x) => x.id !== it.id)));
-    ul.append(h('li', { class: 'list-item' }, iconFor(it), h('div', { class: 'li-text' }, h('div', { class: 'li-title' }, it.title), h('div', { class: 'li-sub' }, it.url)), up, down, edit, del));
+    if (isFolder(it)) {
+      // Folders: "edit" opens the folder window, delete asks first.
+      edit.setAttribute('aria-label', `Open folder ${it.title}`);
+      edit.addEventListener('click', () => openFolder(it.id));
+      del.addEventListener('click', () => deleteFolder(it));
+    } else {
+      edit.addEventListener('click', () =>
+        editLinkDialog({ title: 'Edit', item: it, onSave: (data) => save(items.map((x) => (x.id === it.id ? { ...data, id: it.id, glyph: data.url === it.url ? it.glyph : undefined } : x))) }),
+      );
+      del.addEventListener('click', () => save(items.filter((x) => x.id !== it.id)));
+    }
+    const sub = isFolder(it) ? `Folder · ${it.children.length} shortcut${it.children.length === 1 ? '' : 's'}` : it.url;
+    ul.append(h('li', { class: 'list-item' }, iconFor(it), h('div', { class: 'li-text' }, h('div', { class: 'li-title' }, it.title), h('div', { class: 'li-sub' }, sub)), up, down, edit, del));
   });
   const add = h('button', { type: 'button', class: 'btn small', disabled: items.length >= max }, icon('plus', { size: 14 }), 'Add website…');
   add.addEventListener('click', () => editLinkDialog({ title: 'Add website', onSave: (data) => save([...items, { ...data, id: uid(kind) }]) }));
@@ -608,7 +701,7 @@ function shortcutsSection() {
     save: saveShortcuts,
     kind: 'sc',
     max: MAX_SHORTCUTS,
-    iconFor: (it) => h('span', { class: 'mini' }, siteIcon(it, 32)),
+    iconFor: (it) => (isFolder(it) ? h('span', { class: 'mini', style: { background: '#0a84ff' } }, icon('folder', { size: 13 })) : h('span', { class: 'mini' }, siteIcon(it, 32))),
   });
   const restore = h('button', { type: 'button', class: 'btn small' }, 'Restore original shortcuts');
   restore.addEventListener('click', async () => {
@@ -623,9 +716,9 @@ function shortcutsSection() {
       row('Columns', k('cols', selectBox(cols, String(s.columns), (v) => upd((x) => (x.shortcuts.columns = v === 'auto' ? 'auto' : v)), 'Columns'))),
       row('Show names', k('labels', toggle(s.showLabels, (v) => upd((x) => (x.shortcuts.showLabels = v)), 'Show names'))),
     ),
-    group(`Shortcuts (${store.shortcuts.length}/${MAX_SHORTCUTS})`, ul),
+    group(`On the page (${store.shortcuts.length}/${MAX_SHORTCUTS}) · ${countLinks(store.shortcuts)} shortcuts in total`, ul),
     h('div', { class: 'row-controls', style: { justifyContent: 'flex-start' } }, add, restore),
-    h('p', { class: 'note' }, 'You can also drag tiles on the page to reorder them, or use Ctrl+Shift+← / → on a focused tile.'),
+    h('p', { class: 'note' }, 'Drag tiles on the page to reorder them, or drop one tile onto another to make a folder. Ctrl+Shift+← / → also reorders a focused tile. Folder ⋯ menus have “Open all in new tabs”.'),
   ];
 }
 
@@ -639,7 +732,7 @@ function dockSection() {
     max: 24,
     iconFor: (it) => h('span', { class: 'mini', style: { width: '22px', height: '22px' } }, appFace(it)),
   });
-  const missing = CHROME_APPS.filter((a) => !store.dock.some((x) => x.url === a.url));
+  const missing = CHROME_APPS.filter((a) => !store.dock.some((x) => normalizeUrl(x.url) === normalizeUrl(a.url)));
   const chromeAdd = selectBox([{ id: '', label: 'Add Chrome page…' }, ...missing.map((a) => ({ id: a.url, label: a.title }))], '', (v) => {
     const app = CHROME_APPS.find((a) => a.url === v);
     if (app) saveDock([...store.dock, { ...app, id: uid('dk') }]);
@@ -698,7 +791,23 @@ function aboutSection() {
     ['favicon', 'shows site icons from Chrome’s local icon cache (no requests to the sites).'],
     ['search', 'lets “Chrome default” search with the engine you set in Chrome.'],
   ];
+  const exp = h('button', { type: 'button', class: 'btn small' }, icon('downloads', { size: 14 }), 'Export backup');
+  exp.addEventListener('click', () => exportBackup());
+  const fileIn = h('input', { type: 'file', accept: '.json,application/json', hidden: true });
+  const imp = h('button', { type: 'button', class: 'btn small' }, icon('upload', { size: 14 }), 'Import backup…');
+  imp.addEventListener('click', () => fileIn.click());
+  fileIn.addEventListener('change', async () => {
+    const file = fileIn.files?.[0];
+    fileIn.value = '';
+    if (await importBackupFile(file)) {
+      checkWallpaper();
+      render();
+    }
+  });
   return [
+    group('Backup',
+      row('Settings backup', h('div', { class: 'row-controls' }, exp, imp, fileIn), 'Settings, shortcuts & folders, dock, favorites and to-dos as a JSON file. Your Unsplash key and uploaded photos are not included.'),
+    ),
     group('Permissions', h('ul', { class: 'perm-list' }, perms.map(([p, d]) => h('li', {}, h('b', {}, p), ' — ', d)))),
     group('Privacy',
       h('div', { class: 'row block' }, h('p', { class: 'note' },

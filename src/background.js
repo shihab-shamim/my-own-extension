@@ -4,6 +4,7 @@
 
 import { ensureSeeded, KEYS } from './lib/storage.js';
 import { ALARM, resolveWallpaper, scheduleAlarm, testUnsplash, clearBackoff, selectionSig } from './lib/rotation.js';
+import { ensureOriginRule } from './newtab/gaccount.js';
 
 const NEWTAB_PATH = '/newtab.html';
 
@@ -19,11 +20,27 @@ async function hasOpenNewTab() {
 async function init() {
   await ensureSeeded();
   await scheduleAlarm();
+  await ensureOriginRule();
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  init().catch((e) => console.error('[Sequoia Tab] init failed', e));
+  init()
+    .then(afterSelfReload)
+    .catch((e) => console.error('[Sequoia Tab] init failed', e));
 });
+
+// After "Finish update" (chrome.runtime.reload from the account card): clear
+// the stale "needs reload" state so the account loads, and reopen a New Tab.
+async function afterSelfReload() {
+  const { reopenAfterReload, googleAccounts } = await chrome.storage.local.get(['reopenAfterReload', 'googleAccounts']);
+  if (googleAccounts?.needsReload) {
+    await chrome.storage.local.set({ googleAccounts: { ...googleAccounts, needsReload: false, error: '', detail: '', at: 0 } });
+  }
+  if (reopenAfterReload && Date.now() - reopenAfterReload < 60_000) {
+    await chrome.storage.local.remove('reopenAfterReload');
+    await chrome.tabs.create({});
+  }
+}
 
 chrome.runtime.onStartup.addListener(() => {
   init().catch((e) => console.error('[Sequoia Tab] startup failed', e));

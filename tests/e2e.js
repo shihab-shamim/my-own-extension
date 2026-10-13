@@ -1,6 +1,6 @@
 // End-to-end tests for Sequoia Tab in Chrome for Testing.
 const fs = require('fs');
-const { launch, watch, sleep, OUT, path } = require('./common');
+const { launch, watch, sleep, OUT, path, workerHandle } = require('./common');
 
 const results = [];
 const errors = [];
@@ -95,7 +95,8 @@ async function setSettings(worker, mutate) {
 (async () => {
   fs.rmSync(path.join(__dirname, PROFILE), { recursive: true, force: true });
   let { browser, swTarget, extId } = await launch({ profile: PROFILE });
-  let worker = await swTarget.worker();
+  let worker = workerHandle(browser, extId);
+  void swTarget;
   worker.on('console', (m) => ['error', 'warning'].includes(m.type()) && errors.push('[sw] ' + m.text()));
 
   // make a JPEG for mocked Unsplash photos and an upload
@@ -116,7 +117,7 @@ async function setSettings(worker, mutate) {
     const url = page.url();
     check('1. New Tab override loads the extension page', url.startsWith(`chrome-extension://${extId}/newtab.html`), url);
     const manifest = await worker.evaluate(() => chrome.runtime.getManifest());
-    check('1. Manifest V3 with minimal permissions', manifest.manifest_version === 3 && JSON.stringify(manifest.permissions) === JSON.stringify(['storage', 'bookmarks', 'alarms', 'favicon', 'search']) && !manifest.host_permissions, JSON.stringify(manifest.permissions));
+    check('1. Manifest V3 with minimal permissions', manifest.manifest_version === 3 && JSON.stringify(manifest.permissions) === JSON.stringify(['storage', 'bookmarks', 'alarms', 'favicon', 'search', 'declarativeNetRequestWithHostAccess']) && !manifest.host_permissions, JSON.stringify(manifest.permissions));
     const tiles = await page.$$eval('.tile:not(.tile-add) .tile-link', (as) => as.map((a) => [a.querySelector('.tile-label').textContent, a.getAttribute('href')]));
     const expected = [
       ['All Plugings', 'https://profiles.wordpress.org/bplugins/#content-plugins'],
@@ -336,7 +337,7 @@ async function setSettings(worker, mutate) {
   // ---------------------------------------------------------------- settings UI + persistence
   if (want('settings')) {
     const page = await openNtp(browser, 'settings');
-    await page.click('#corner-actions .round-btn');
+    await page.click('#corner-actions .round-btn[aria-label="Customize New Tab"]');
     await page.waitForSelector('dialog.settings-dialog[open]');
     const tabs = await page.$$eval('.side-tab', (t) => t.map((x) => x.textContent));
     check('Settings: panel opens with all sections', tabs.length === 9, tabs.join('|'));
@@ -360,12 +361,12 @@ async function setSettings(worker, mutate) {
     await page.click('[data-k="w-up-shortcuts"]');
     await sleep(400);
     const layout = await page.evaluate(() => ({ searchHidden: document.getElementById('w-search').hidden, order: [...document.getElementById('stage').children].map((c) => c.id) }));
-    check('6/Widgets: hide + reorder widgets', layout.searchHidden && layout.order.join() === 'w-clock,w-shortcuts,w-search', JSON.stringify(layout));
+    check('6/Widgets: hide + reorder widgets', layout.searchHidden && layout.order.join() === 'w-clock,w-shortcuts,w-search,w-todo', JSON.stringify(layout));
     await page.click('[data-k="w-vis-search"] input');
     await page.click('[data-k="w-down-shortcuts"]');
     await sleep(300);
     const restored = await page.evaluate(() => [...document.getElementById('stage').children].map((c) => c.id + (c.hidden ? ':hidden' : '')).join());
-    check('Widgets: order and visibility restore', restored === 'w-clock,w-search,w-shortcuts', restored);
+    check('Widgets: order and visibility restore', restored === 'w-clock,w-search,w-shortcuts,w-todo', restored);
     await page.click('#tab-shortcuts');
     await page.evaluate(() => [...document.querySelectorAll('.segmented button')].find((b) => b.textContent === 'Large').click());
     await page.click('#tab-dock');
@@ -382,7 +383,7 @@ async function setSettings(worker, mutate) {
   // ---------------------------------------------------------------- 6. uploads
   if (want('uploads')) {
     const page = await openNtp(browser, 'uploads');
-    await page.click('#corner-actions .round-btn');
+    await page.click('#corner-actions .round-btn[aria-label="Customize New Tab"]');
     await page.waitForSelector('dialog[open]');
     await page.click('#tab-wallpaper');
     await page.evaluate(() => [...document.querySelectorAll('.segmented button')].find((b) => b.textContent === 'My Photos').click());
@@ -406,7 +407,7 @@ async function setSettings(worker, mutate) {
     await sleep(300);
     await page.screenshot({ path: path.join(OUT, '04-upload.png') });
     // second upload & remove
-    await page.click('#corner-actions .round-btn');
+    await page.click('#corner-actions .round-btn[aria-label="Customize New Tab"]');
     await page.waitForSelector('dialog[open] input[type=file]');
     await (await page.$('dialog[open] input[type=file]')).uploadFile(path.join(OUT, 'upload-test.png'));
     await sleep(1500);
@@ -429,7 +430,7 @@ async function setSettings(worker, mutate) {
     // invalid key — real network request to api.unsplash.com
     await worker.evaluate(() => { if (self.__real) self.fetch = self.__real; });
     const page = await openNtp(browser, 'unsplash');
-    await page.click('#corner-actions .round-btn');
+    await page.click('#corner-actions .round-btn[aria-label="Customize New Tab"]');
     await page.waitForSelector('dialog[open]');
     await page.click('#tab-wallpaper');
     await page.evaluate(() => [...document.querySelectorAll('.segmented button')].find((b) => b.textContent === 'Unsplash').click());
@@ -500,7 +501,38 @@ async function setSettings(worker, mutate) {
     await page.waitForSelector('.clock-time');
     await sleep(500);
     const statusText = await page.$eval('#attribution', (e) => e.textContent);
-    check('14. Offline status is visible to the user', /Could not reach Unsplash/.test(statusText), statusText);
+    check('14. Self-healing problems (offline) don’t clutter the page; the photo credit stays', !/Could not reach Unsplash/.test(statusText) && /Photo by .+ on Unsplash/.test(statusText), statusText);
+    await page.click('#corner-actions .round-btn[aria-label="Customize New Tab"]');
+    await page.waitForSelector('dialog.settings-dialog[open]');
+    await page.click('#tab-wallpaper');
+    await sleep(300);
+    const settingsStatus = await page.$eval('dialog[open] .status-line', (e) => e.textContent).catch(() => '');
+    check('14. …but Settings → Wallpaper still explains it', /Could not reach Unsplash/.test(settingsStatus), settingsStatus);
+    await page.keyboard.press('Escape');
+    await sleep(200);
+    // Problems you must fix yourself still show on the page.
+    await storageSet(worker, { wallpaperState: { ...st4, status: { state: 'error', code: 'invalid-key', message: 'Unsplash rejected the Access Key. Check that it is correct.', source: 'unsplash', at: Date.now() } } });
+    await sleep(500);
+    const keyText = await page.$eval('#attribution', (e) => e.textContent);
+    check('14. Problems you need to fix (wrong key) are still shown on the page', /rejected the Access Key/.test(keyText), keyText);
+    await storageSet(worker, { wallpaperState: st4 });
+    await sleep(300);
+    // Credit switch (Settings → Widgets): on by default; off removes it entirely.
+    check('Credit: Unsplash photo credit is on by default', /Photo by .+ on Unsplash/.test(await page.$eval('#attribution', (e) => e.textContent)));
+    await page.click('#corner-actions .round-btn[aria-label="Customize New Tab"]');
+    await page.waitForSelector('dialog.settings-dialog[open]');
+    await page.click('#tab-widgets');
+    await sleep(300);
+    const creditHint = await page.$eval('[data-k="w-credit"]', (e) => e.closest('.row').textContent);
+    await page.click('[data-k="w-credit"] input');
+    await sleep(500);
+    const offText = await page.$eval('#attribution', (e) => e.textContent).catch(() => '');
+    check('Credit: switching it off removes the text from the page (with a clear warning in Settings)', !/Photo by|Unsplash/.test(offText) && /may revoke your Access Key/.test(creditHint), JSON.stringify(offText));
+    await page.click('[data-k="w-credit"] input');
+    await sleep(500);
+    check('Credit: switching it back on restores it', /Photo by .+ on Unsplash/.test(await page.$eval('#attribution', (e) => e.textContent)));
+    await page.keyboard.press('Escape');
+    await sleep(200);
     // Offline page: image fails to load
     await mockUnsplash(worker, 'ok');
     await setSettings(worker, (s) => s.wallpaper.categories = ['nature', 'mountains']);
@@ -575,6 +607,7 @@ async function setSettings(worker, mutate) {
     check('Daily: changes once the calendar day changes', st2.current.id !== st.current.id);
 
     // 10. multiple tabs, Unsplash, due -> only 1 batch request
+    await mockUnsplash(worker, 'ok'); // the worker may have been restarted while idle
     await storageSet(worker, { secrets: { unsplashKey: 'validmockkey_validmockkey_1234567' } });
     await setSettings(worker, (s) => { s.wallpaper.source = 'unsplash'; s.wallpaper.categories = ['abstract']; s.wallpaper.interval = '1m'; });
     await sleep(1500);
@@ -618,7 +651,7 @@ async function setSettings(worker, mutate) {
     await page.setViewport({ width: 1280, height: 800 });
     // settings dialog at phone width
     await page.setViewport({ width: 390, height: 844 });
-    await page.click('#corner-actions .round-btn');
+    await page.click('#corner-actions .round-btn[aria-label="Customize New Tab"]');
     await page.waitForSelector('dialog[open]');
     await sleep(300);
     const dlgFits = await page.$eval('dialog[open] .sheet', (s) => s.getBoundingClientRect().width <= window.innerWidth);
@@ -639,7 +672,7 @@ async function setSettings(worker, mutate) {
       order.push(await page.evaluate(() => document.activeElement.getAttribute('aria-label') || document.activeElement.textContent.trim().slice(0, 20) || document.activeElement.tagName));
     }
     check('13. Keyboard Tab order reaches skip link, bookmarks, search', order[0] === 'Skip to search' && order.some((o) => /Search/.test(o)), order.join(' → '));
-    const unlabeled = await page.evaluate(() => [...document.querySelectorAll('button, a[href], input, select')].filter((e) => !(e.getAttribute('aria-label') || e.textContent.trim() || e.title || e.closest('label'))).map((e) => e.outerHTML.slice(0, 80)));
+    const unlabeled = await page.evaluate(() => [...document.querySelectorAll('button, a[href], input, select')].filter((e) => !(e.getAttribute('aria-label') || e.textContent.trim() || e.title || e.closest('label') || e.labels?.length)).map((e) => e.outerHTML.slice(0, 80)));
     check('13. All interactive elements have accessible names', unlabeled.length === 0, unlabeled.join(' | '));
     // reduced motion
     await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
@@ -668,7 +701,7 @@ async function setSettings(worker, mutate) {
     const before = await storageGet(worker);
     await browser.close();
     ({ browser, swTarget, extId } = await launch({ profile: PROFILE }));
-    worker = await swTarget.worker();
+    worker = workerHandle(browser, extId);
     const page = await openNtp(browser, 'restart');
     const after = await storageGet(worker);
     const ui = await page.evaluate(() => ({ clock: document.querySelector('.clock-time').textContent, dock: document.getElementById('dock').dataset.pos, bm: document.getElementById('bookmarks-bar').hidden, attrib: document.getElementById('attribution').textContent }));
@@ -677,7 +710,7 @@ async function setSettings(worker, mutate) {
     const alarm = await worker.evaluate(() => chrome.alarms.get('wallpaper-rotate'));
     check('9. Rotation alarm exists after restart', alarm?.periodInMinutes === 5, JSON.stringify(alarm));
     // restore defaults
-    await page.click('#corner-actions .round-btn');
+    await page.click('#corner-actions .round-btn[aria-label="Customize New Tab"]');
     await page.waitForSelector('dialog[open]');
     await page.click('#tab-about');
     await page.evaluate(() => [...document.querySelectorAll('dialog[open] button')].find((b) => b.textContent === 'Restore default settings').click());

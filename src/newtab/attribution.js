@@ -12,6 +12,7 @@ import { toast } from './ui.js';
 import { getWallpaper } from '../lib/idb.js';
 
 const el = document.getElementById('attribution');
+const SELF_HEALING = new Set(['rate-limited', 'offline', 'http']);
 let busy = false;
 
 function link(text, href) {
@@ -48,14 +49,16 @@ function roundBtn(name, label, onClick, { filled = false, ...attrs } = {}) {
 export async function renderAttribution() {
   const visible = store.settings.widgets.visible.attribution;
   const cur = store.wallpaper?.current;
-  // Unsplash requires attribution, so it stays visible for Unsplash photos.
-  const mustShow = cur?.kind === 'unsplash';
+  // Unsplash requires attribution, so it stays visible for Unsplash photos —
+  // unless the user explicitly turned the credit off in Settings.
+  const credit = store.settings.wallpaper.showCredit !== false;
+  const mustShow = cur?.kind === 'unsplash' && credit;
   el.hidden = !visible && !mustShow;
   if (el.hidden) return;
 
   const w = store.settings.wallpaper;
   const status = store.wallpaper?.status;
-  const textParts = await describe(cur);
+  const textParts = cur?.kind === 'unsplash' && !credit ? [] : await describe(cur);
   const controls = [];
   if (visible) {
     const next = roundBtn('refresh', 'Next wallpaper', onNext);
@@ -82,7 +85,10 @@ export async function renderAttribution() {
     }
   }
   const text = h('div', { class: 'attrib' }, textParts);
-  if (status?.state === 'error' && status.message) {
+  // Only show problems you need to act on (missing/wrong key, no photos).
+  // Rate limits, offline and server hiccups fix themselves, so they stay quiet
+  // here; Settings → Wallpaper still shows them.
+  if (status?.state === 'error' && status.message && !SELF_HEALING.has(status.code)) {
     text.append(h('br'), h('span', { class: 'status', role: 'status' }, status.message));
   }
   clear(el).append(...controls, text);

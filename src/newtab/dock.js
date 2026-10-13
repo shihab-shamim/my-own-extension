@@ -3,7 +3,7 @@
 import { h, clear } from './dom.js';
 import { icon, DOCK_GLYPH_COLORS } from '../lib/icons.js';
 import { needsTabsApi, openUrl } from '../lib/url.js';
-import { siteIcon } from './shortcuts.js';
+import { siteIcon } from './site-icon.js';
 import { store } from './store.js';
 
 const dock = document.getElementById('dock');

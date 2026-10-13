@@ -10,6 +10,7 @@ export const KEYS = {
   secrets: 'secrets', // { unsplashKey }
   wallpaper: 'wallpaperState',
   favorites: 'favorites',
+  todos: 'todos', // { items: [], day: 'YYYY-MM-DD' }
 };
 
 const area = () => chrome.storage.local;
@@ -49,6 +50,11 @@ export async function getSecrets() {
 export async function getFavorites() {
   const { favorites } = await get(KEYS.favorites);
   return Array.isArray(favorites) ? favorites : [];
+}
+
+export async function getTodos() {
+  const { todos } = await get(KEYS.todos);
+  return { items: Array.isArray(todos?.items) ? todos.items : [], day: typeof todos?.day === 'string' ? todos.day : '' };
 }
 
 export async function getWallpaperState() {

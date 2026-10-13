@@ -4,11 +4,11 @@ const EXT = process.env.EXT_DIR || path.resolve(__dirname, '..');
 const OUT = path.join(__dirname, 'out');
 require('fs').mkdirSync(OUT, { recursive: true });
 
-async function launch({ profile = 'profile', headless = true, width = 1280, height = 800 } = {}) {
+async function launch({ profile = 'profile', headless = true, width = 1280, height = 800, ext = EXT } = {}) {
   const browser = await puppeteer.launch({
     headless,
     pipe: true,
-    enableExtensions: [EXT],
+    enableExtensions: [ext],
     userDataDir: path.join(__dirname, profile),
     defaultViewport: { width, height },
     args: [`--window-size=${width},${height}`],
@@ -27,3 +27,36 @@ function watch(page, label, errors) {
 async function sw(swTarget) { return swTarget.worker(); }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 module.exports = { launch, watch, sw, sleep, OUT, EXT, path };
+
+// MV3 service workers are stopped by Chrome when idle, so never hold on to one
+// worker handle: resolve the current one each time, waking it if needed.
+function workerHandle(browser, extId) {
+  const isOurs = (t) => t.type() === 'service_worker' && t.url().startsWith(`chrome-extension://${extId}/`);
+  let cached = null;
+  let cachedTarget = null;
+  const listeners = [];
+  async function current() {
+    let target = browser.targets().find(isOurs);
+    if (!target) {
+      // Wake it: any extension page can message the worker.
+      const page = (await browser.pages()).find((p) => p.url().startsWith(`chrome-extension://${extId}/`));
+      if (page) await page.evaluate(() => chrome.runtime.sendMessage({ type: 'alarm:info' })).catch(() => {});
+      target = await browser.waitForTarget(isOurs, { timeout: 15000 });
+    }
+    if (target !== cachedTarget) {
+      cachedTarget = target;
+      cached = await target.worker();
+      for (const [ev, fn] of listeners) cached.on(ev, fn);
+    }
+    return cached;
+  }
+  return {
+    evaluate: async (fn, ...args) => (await current()).evaluate(fn, ...args),
+    on: (ev, fn) => {
+      listeners.push([ev, fn]);
+      if (cached) cached.on(ev, fn);
+    },
+    current,
+  };
+}
+module.exports.workerHandle = workerHandle;
