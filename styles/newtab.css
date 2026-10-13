@@ -1011,3 +1011,10 @@ button.tile-link:hover { background: rgba(255, 255, 255, 0.1); }
 .todo-card.collapsed .todo-resize { display: none; }
 /* A card you placed yourself stays above the bookmarks and Google bars. */
 .todo-card.placed { z-index: 7; }
+/* "Finish update" banner (unpacked installs updated on disk) */
+.update-banner {
+  position: fixed; z-index: 60; top: 58px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 8px 8px 16px; border-radius: 999px; font-size: 13px;
+  animation: pop var(--dur) var(--ease) both;
+}

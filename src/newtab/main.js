@@ -186,7 +186,29 @@ async function main() {
   });
 }
 
-main().catch((err) => {
+// Unpacked installs read page files live, but the manifest and service worker
+// only update on reload. If the files on disk are newer, offer one click.
+async function checkPendingUpdate() {
+  try {
+    const disk = await (await fetch(chrome.runtime.getURL('manifest.json'), { cache: 'no-store' })).json();
+    const loaded = chrome.runtime.getManifest().version;
+    if (!disk?.version || disk.version === loaded) return;
+    const btn = h('button', { type: 'button', class: 'btn small primary' }, 'Finish update');
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Updating…';
+      await chrome.storage.local.set({ reopenAfterReload: Date.now() });
+      chrome.runtime.reload();
+    });
+    document.body.append(h('div', { class: 'update-banner glass', role: 'status' }, h('span', {}, `Sequoia Tab ${disk.version} is ready.`), btn));
+  } catch {
+    /* not important */
+  }
+}
+
+main()
+  .then(checkPendingUpdate)
+  .catch((err) => {
   console.error('[Sequoia Tab] failed to start', err);
   document.body.append(h('p', { class: 'toast glass', style: { position: 'fixed', top: '20px', left: '20px' } }, 'Sequoia Tab couldn’t start. Try reloading the page.'));
 });

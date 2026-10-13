@@ -5,6 +5,7 @@
 import { ensureSeeded, KEYS } from './lib/storage.js';
 import { ALARM, resolveWallpaper, scheduleAlarm, testUnsplash, clearBackoff, selectionSig } from './lib/rotation.js';
 import { ensureOriginRule } from './newtab/gaccount.js';
+import { canOverlay, toggleOverlay } from './overlay.js';
 
 const NEWTAB_PATH = '/newtab.html';
 
@@ -21,6 +22,20 @@ async function init() {
   await ensureSeeded();
   await scheduleAlarm();
   await ensureOriginRule();
+  await setupSidePanel();
+}
+
+// The toolbar button (and Ctrl+Shift+Y) toggles the to-do list in Chrome's
+// side panel, which stays open on every site while you browse. We handle the
+// click ourselves (instead of openPanelOnActionClick) so a second press closes it.
+async function setupSidePanel() {
+  if (!chrome.sidePanel) return;
+  try {
+    await chrome.sidePanel.setOptions({ path: 'sidepanel.html', enabled: true });
+    await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
+  } catch (err) {
+    console.warn('[Sequoia Tab] side panel setup failed:', err?.message || err);
+  }
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -46,9 +61,56 @@ chrome.runtime.onStartup.addListener(() => {
   init().catch((e) => console.error('[Sequoia Tab] startup failed', e));
 });
 
-chrome.action.onClicked.addListener(() => {
-  chrome.tabs.create({});
+// Which windows currently show the panel. Each open panel keeps a port to us
+// (and reconnects if this worker restarts), so this stays accurate.
+const panelPorts = new Map(); // windowId -> port
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== 'sidepanel' || port.sender?.id !== chrome.runtime.id) return;
+  let windowId = null;
+  port.onMessage.addListener((msg) => {
+    if (msg?.type === 'hello' && Number.isInteger(msg.windowId)) {
+      windowId = msg.windowId;
+      panelPorts.set(windowId, port);
+    }
+  });
+  port.onDisconnect.addListener(() => {
+    if (windowId != null && panelPorts.get(windowId) === port) panelPorts.delete(windowId);
+  });
 });
+
+// Toolbar button / Ctrl+Shift+Y:
+//  - side panel open in this window  -> close it
+//  - a normal website                -> slide the floating to-do over the page (or away)
+//  - anything else (chrome:// pages…) -> open the side panel
+// sidePanel.open() is called synchronously so Chrome sees the user's gesture.
+function togglePanel(tab) {
+  const windowId = tab?.windowId;
+  if (windowId == null) return;
+  const port = panelPorts.get(windowId);
+  if (port) {
+    panelPorts.delete(windowId);
+    const viaPanel = () => {
+      try {
+        port.postMessage({ type: 'close' });
+      } catch {
+        /* already gone */
+      }
+    };
+    if (chrome.sidePanel?.close) chrome.sidePanel.close({ windowId }).catch(viaPanel);
+    else viaPanel();
+    return;
+  }
+  if (tab.id != null && canOverlay(tab.url) && chrome.scripting) {
+    toggleOverlay(tab.id).catch((err) => console.warn('[Sequoia Tab] could not show the floating to-do:', err?.message || err));
+    return;
+  }
+  if (!chrome.sidePanel) return;
+  chrome.sidePanel.open({ windowId }).catch((err) => console.warn('[Sequoia Tab] could not open the side panel:', err?.message || err));
+}
+self.__sequoiaTogglePanel = togglePanel; // used by the automated tests
+
+chrome.action.onClicked.addListener(togglePanel);
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name !== ALARM) return;

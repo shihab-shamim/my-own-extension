@@ -1,9 +1,9 @@
-# Testing report — Sequoia Tab 1.4.2
+# Testing report — Sequoia Tab 1.6.0
 
 **Date:** 2026-10-13
 **Environment:** Windows 11 Pro, Chrome for Testing 148.0.7778.97 driven by Puppeteer 24. Branded Chrome 155 is installed, but it no longer accepts `--load-extension`, so automated runs use Chrome for Testing.
 **Suite:** `tests/e2e.js`, the real extension loaded unpacked
-**Result:** **230 / 230 checks passed** on 1.4.2: `e2e.js` 87/87 (re-run after the last fix), `features.js` 62/62, `gbar.js` 23/23, `gaccount.js` 34/34, `todo-layout.js` 24/24. The last four ran on identical code except for a one-line fix in `main.js` that only adds the credit switch to the attribution redraw list.
+**Result:** **277 / 277 checks passed** in the final run on the shipped 1.6.0 code: `e2e.js` 87/87, `features.js` 62/62, `gbar.js` 23/23, `gaccount.js` 34/34, `todo-layout.js` 24/24, `sidepanel.js` 29/29, `overlay.js` 18/18.
 
 ## Verified functionality (spec §10)
 
@@ -105,6 +105,38 @@ Drag by the header moves the card exactly with the mouse; drag the corner resize
 - Self-healing Unsplash problems (rate limit, offline, server errors) no longer show on the page; Settings → Wallpaper still explains them. Problems you must fix (missing or wrong key) still show on the page.
 - New **Unsplash photo credit** switch (Settings → Widgets). It is on by default; off removes the credit entirely, at your request. Settings warns that this breaks Unsplash's API rules and may get the key revoked.
 - Bug found by the new test: switching the credit didn't redraw the corner until reload. Fixed.
+
+## 1.5.0 To-do in the side panel — verified (`tests/sidepanel.js`, 22 checks)
+
+- Setup: `side_panel` page plus the `sidePanel` permission, with no host permissions and no content scripts. The toolbar button opens the panel, Ctrl+Shift+Y is the suggested shortcut, and the panel is enabled on every site.
+- The panel shows the list ready to type, with no move/resize/collapse controls (Chrome sizes the panel). Its menu has *Close side panel*.
+- Live sync both ways with the New Tab: add, tick and delete. Long lists scroll inside the panel and the input stays visible. The panel follows the light/dark setting.
+- The New Tab card's ▯ button opens Chrome's real side panel: confirmed by asking Chrome which pages are open (Puppeteer doesn't announce side panel targets). Also confirmed in a visible browser window.
+- Files updated on disk but extension not reloaded: the button finishes the update itself (self-reload, reopens a New Tab), and the side panel then works.
+
+## 1.5.1 Side panel on/off toggle
+
+- **Reported by you: the shortcut didn't work on a site.** Chrome had assigned Ctrl+Shift+Y correctly, but Chrome's built-in "toolbar click opens the panel" behavior only opens; with the panel already open, pressing it did nothing. The extension now handles the click/shortcut itself: open if closed, close if open, per window. An open panel keeps a connection to the service worker, reconnecting if the worker restarts, so the state is always known.
+- Verified: closing via the toggle; that the toggle tries to open when closed (Chrome refuses only because automation can't send a real click or shortcut — in real use your click/shortcut is that gesture); reopening with a real click and closing again; a to-do page open in a normal tab is never closed by the toggle.
+- The panel menu shows the shortcut and links to *Change keyboard shortcut…*.
+- New **Finish update** banner on the New Tab when the files on disk are newer than what Chrome loaded (tested).
+- Not automated: pressing the real toolbar button / Ctrl+Shift+Y. Sending real keystrokes to your desktop could hit your own windows, so I didn't.
+
+## 1.6.0 Floating to-do on websites — verified (`tests/overlay.js`, 18 checks)
+
+- **Permissions:** only `activeTab` + `scripting` were added. There are no host permissions and no content scripts, so no install warning. The only web-accessible page is the to-do page, served through a per-session **dynamic URL**.
+- **Website can't use it:** a website that tries to load the to-do page on its own is refused by Chrome ("Denying load…").
+- **Floating:** pressing once slides it in over the page. The page keeps its full width and nothing moves, and the cursor is ready in "Add a task".
+- **Isolation:** the page can't look inside it (closed Shadow DOM plus an extension iframe).
+- **Sync:** both ways with the New Tab.
+- **Hiding and showing:** pressing again slides it away; pressing again brings back the same list instantly. **Esc** and **✕** both hide it, and when hidden the page underneath works normally.
+- **Works on strict sites:** tested on github.com, which has a strict Content-Security-Policy.
+- **Chrome pages:** on `chrome://` pages it falls back to the side panel.
+- **Narrow windows:** fits without horizontal scroll.
+- **Bugs found and fixed:**
+  - The extension's own security policy had `frame-ancestors 'none'`, which blocked the floating list. It now allows framing by websites only for the injected to-do page, and the dynamic URL keeps other sites out.
+  - Test-side fixes: Enter is sent to the iframe's input; a local test page replaces example.com; the `chrome://` tab is found without its hidden URL.
+- **Test setup and limits:** automation can't press the toolbar button that grants `activeTab`, so the behavior tests used a copy with all-sites access standing in for that grant. The injection code path is the same. Pressing the real button or Ctrl+Shift+Y on your machine is the one remaining manual check.
 
 ## Not covered by automation (and why)
 

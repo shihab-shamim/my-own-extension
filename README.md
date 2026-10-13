@@ -6,6 +6,33 @@ It only changes the New Tab page. Chrome's toolbar, address bar, tabs and settin
 
 Your 10 existing New Tab shortcuts (All Plugings, My plugin, Gmail, bplugins mail, Present sheet, Freemius, ClickUp, Support Desk, Daily Workshit, mail swarm) come pre-loaded, in the same order and with the same URLs.
 
+### Floating to-do on any website (v1.6)
+
+On any normal website, press **Ctrl+Shift+Y** or click the Sequoia Tab toolbar button:
+
+- The to-do list **slides in from the right, floating over the page**. It takes no space and the page doesn't move or shrink.
+- Press again, press **Esc**, or click **✕** to slide it away.
+- It's the same list as on the New Tab and in the side panel; changes show everywhere instantly.
+- On pages where Chrome doesn't allow extensions (`chrome://` pages, the Chrome Web Store), the same button opens the **side panel** instead.
+
+How it stays safe:
+
+- It uses `activeTab` + `scripting`, which have no install warning. The extension can touch **only the tab where you pressed the button**, and only after you press it. There is no access to all websites and no code running on pages you don't use it on.
+- The list sits in a closed Shadow DOM and an extension iframe, so the website can't read or change your tasks. The page's styles can't break it.
+- The to-do page uses a per-session **dynamic URL**. Websites can't load it on their own or use it to detect the extension; Chrome refuses those requests.
+- After you go to another page, press the button again to show it there. That's how `activeTab` works: no permanent access.
+
+
+
+Your to-do list can also live in **Chrome's side panel**, on the right of any website. It stays open while you switch tabs and browse, and you can close it and bring it back any time:
+
+- **Open / close (toggle):** click the Sequoia Tab toolbar button or press **Ctrl+Shift+Y**. Press once to open and again to close, on any site. You can also (changeable at `chrome://extensions/shortcuts`) use the ▯ button or ⋯ → *Open in side panel* on the New Tab to-do card.
+- **Close:** the same button or shortcut, the panel's ✕, or ⋯ → *Close side panel*. The panel's ⋯ menu shows your shortcut and has *Change keyboard shortcut…*.
+- **Updating an unpacked copy:** when the files on disk are newer than what Chrome loaded, the New Tab shows **Finish update**. One click reloads the extension and reopens a New Tab.
+- It's the same list as on the New Tab. Adding, ticking, editing and deleting tasks updates both instantly.
+- It uses Chrome's own side panel (`sidePanel` permission, no install warning). Nothing is injected into websites, and it works on every page, including Chrome's own pages.
+- Pin the extension (puzzle icon → 📌) to keep the toolbar button handy.
+
 ### Real Google account info (v1.3, optional)
 
 Click the round avatar, then **Connect Google account**:
@@ -102,6 +129,8 @@ How the extension uses the API:
 | `bookmarks` | **Reads** your bookmarks bar and folders. The code never calls `create`, `update`, `move` or `remove`. Chrome's install prompt says "read and change" because it has no read-only bookmarks permission. |
 | `alarms` | Wakes the service worker to rotate wallpapers on schedule |
 | `favicon` | Shows site icons from Chrome's local favicon cache (no requests to the sites) |
+| `sidePanel` | Shows the to-do list in Chrome's side panel. No install warning |
+| `activeTab`, `scripting` | When you press the toolbar button / Ctrl+Shift+Y on a website, shows the floating to-do on **that tab only**. No install warning, no access to other sites |
 | `declarativeNetRequestWithHostAccess` | No install warning, and it only works on sites you granted. For the single account-list request, it sends `Origin: https://www.google.com` (exactly what Chrome's own account menu sends) instead of the extension's origin, because Google rejects (403) requests carrying an extension origin. It is limited to that one URL, POST requests and this extension's own requests |
 | `https://accounts.google.com/*` (**optional**) | Only if you click *Connect Google account*: reads your signed-in Google accounts (name, email, photo) to show them in the account card. It isn't requested at install, and *Disconnect* removes it |
 | `search` | Lets *Chrome default* search with the engine you chose in Chrome settings |
