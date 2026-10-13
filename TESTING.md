@@ -1,9 +1,9 @@
-# Testing report — Sequoia Tab 1.4.2
+# Testing report — Sequoia Tab 1.5.0
 
 **Date:** 2026-10-13
 **Environment:** Windows 11 Pro, Chrome for Testing 148.0.7778.97 driven by Puppeteer 24. Branded Chrome 155 is installed, but it no longer accepts `--load-extension`, so automated runs use Chrome for Testing.
 **Suite:** `tests/e2e.js`, the real extension loaded unpacked
-**Result:** **230 / 230 checks passed** on 1.4.2: `e2e.js` 87/87 (re-run after the last fix), `features.js` 62/62, `gbar.js` 23/23, `gaccount.js` 34/34, `todo-layout.js` 24/24. The last four ran on identical code except for a one-line fix in `main.js` that only adds the credit switch to the attribution redraw list.
+**Result:** **252 / 252 checks passed** in the final run on the shipped 1.5.0 code: `e2e.js` 87/87, `features.js` 62/62, `gbar.js` 23/23, `gaccount.js` 34/34, `todo-layout.js` 24/24, `sidepanel.js` 22/22.
 
 ## Verified functionality (spec §10)
 
@@ -105,6 +105,14 @@ Drag by the header moves the card exactly with the mouse; drag the corner resize
 - Self-healing Unsplash problems (rate limit, offline, server errors) no longer show on the page; Settings → Wallpaper still explains them. Problems you must fix (missing or wrong key) still show on the page.
 - New **Unsplash photo credit** switch (Settings → Widgets). It is on by default; off removes the credit entirely, at your request. Settings warns that this breaks Unsplash's API rules and may get the key revoked.
 - Bug found by the new test: switching the credit didn't redraw the corner until reload. Fixed.
+
+## 1.5.0 To-do in the side panel — verified (`tests/sidepanel.js`, 22 checks)
+
+- Setup: `side_panel` page plus the `sidePanel` permission, with no host permissions and no content scripts. The toolbar button opens the panel, Ctrl+Shift+Y is the suggested shortcut, and the panel is enabled on every site.
+- The panel shows the list ready to type, with no move/resize/collapse controls (Chrome sizes the panel). Its menu has *Close side panel*.
+- Live sync both ways with the New Tab: add, tick and delete. Long lists scroll inside the panel and the input stays visible. The panel follows the light/dark setting.
+- The New Tab card's ▯ button opens Chrome's real side panel: confirmed by asking Chrome which pages are open (Puppeteer doesn't announce side panel targets). Also confirmed in a visible browser window.
+- Files updated on disk but extension not reloaded: the button finishes the update itself (self-reload, reopens a New Tab), and the side panel then works.
 
 ## Not covered by automation (and why)
 

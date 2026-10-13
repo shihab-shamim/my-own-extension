@@ -117,7 +117,7 @@ async function setSettings(worker, mutate) {
     const url = page.url();
     check('1. New Tab override loads the extension page', url.startsWith(`chrome-extension://${extId}/newtab.html`), url);
     const manifest = await worker.evaluate(() => chrome.runtime.getManifest());
-    check('1. Manifest V3 with minimal permissions', manifest.manifest_version === 3 && JSON.stringify(manifest.permissions) === JSON.stringify(['storage', 'bookmarks', 'alarms', 'favicon', 'search', 'declarativeNetRequestWithHostAccess']) && !manifest.host_permissions, JSON.stringify(manifest.permissions));
+    check('1. Manifest V3 with minimal permissions', manifest.manifest_version === 3 && JSON.stringify(manifest.permissions) === JSON.stringify(['storage', 'bookmarks', 'alarms', 'favicon', 'search', 'declarativeNetRequestWithHostAccess', 'sidePanel']) && !manifest.host_permissions, JSON.stringify(manifest.permissions));
     const tiles = await page.$$eval('.tile:not(.tile-add) .tile-link', (as) => as.map((a) => [a.querySelector('.tile-label').textContent, a.getAttribute('href')]));
     const expected = [
       ['All Plugings', 'https://profiles.wordpress.org/bplugins/#content-plugins'],

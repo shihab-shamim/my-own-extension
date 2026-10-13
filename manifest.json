@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Sequoia Tab — macOS-style New Tab",
   "short_name": "Sequoia Tab",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "description": "A calm, macOS-inspired New Tab page with rotating wallpapers, your Chrome bookmarks, shortcuts and a dock.",
   "minimum_chrome_version": "116",
   "icons": {
@@ -19,7 +19,7 @@
     "type": "module"
   },
   "action": {
-    "default_title": "Open a new Sequoia Tab",
+    "default_title": "Open the to-do side panel",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png"
@@ -31,12 +31,25 @@
     "alarms",
     "favicon",
     "search",
-    "declarativeNetRequestWithHostAccess"
+    "declarativeNetRequestWithHostAccess",
+    "sidePanel"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
   },
   "optional_host_permissions": [
     "https://accounts.google.com/*"
-  ]
+  ],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
+      "description": "Open or close the to-do side panel"
+    }
+  }
 }

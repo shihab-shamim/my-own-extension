@@ -16,6 +16,8 @@ let dailyBtn;
 let collapsed = false;
 let midnightTimer = null;
 let editingId = null;
+let panelMode = false; // true inside Chrome's side panel (sidepanel.html)
+let windowId = null; // cached so "Open in side panel" keeps the click's user gesture
 
 try {
   collapsed = localStorage.getItem('sequoia:todo-collapsed') === '1';
@@ -118,8 +120,13 @@ function menu(btn, kb) {
       { label: `Clear completed (${doneCount})`, icon: icon('trash', { size: 15 }), onSelect: () => commit(items().filter((t) => !t.done || t.daily)) },
       { label: 'Uncheck all', icon: icon('refresh', { size: 15 }), onSelect: () => commit(items().map((t) => ({ ...t, done: false }))) },
       { sep: true },
-      ...(box().custom ? [{ label: 'Reset size & position', icon: icon('refresh', { size: 15 }), onSelect: resetBox }] : []),
-      { label: 'Hide to-do list', icon: icon('close', { size: 15 }), onSelect: () => updateSettings((s) => (s.widgets.visible.todo = false)).then(() => toast('To-do list hidden. Turn it back on in Settings → Widgets.')) },
+      ...(panelMode
+        ? [{ label: 'Close side panel', icon: icon('close', { size: 15 }), onSelect: () => window.close() }]
+        : [
+            { label: 'Open in side panel', icon: icon('sidebar', { size: 15 }), onSelect: openSidePanel },
+            ...(box().custom ? [{ label: 'Reset size & position', icon: icon('refresh', { size: 15 }), onSelect: resetBox }] : []),
+            { label: 'Hide to-do list', icon: icon('close', { size: 15 }), onSelect: () => updateSettings((s) => (s.widgets.visible.todo = false)).then(() => toast('To-do list hidden. Turn it back on in Settings → Widgets.')) },
+          ]),
     ],
     { label: 'To-do options', focusFirst: kb },
   );
@@ -153,7 +160,8 @@ function applyCollapsed(toggleBtn, body) {
   clear(toggleBtn).append(icon(collapsed ? 'chevronDown' : 'chevronUp', { size: 14 }));
 }
 
-export function initTodo() {
+export function initTodo({ panel = false } = {}) {
+  panelMode = panel;
   checkRollover();
   scheduleMidnight();
   countEl = h('span', { class: 'todo-count', 'aria-live': 'polite' });
@@ -177,7 +185,11 @@ export function initTodo() {
   listEl = h('ul', { class: 'todo-list', 'aria-label': 'Tasks' });
   const body = h('div', { id: 'todo-body', class: 'todo-body' }, form, listEl);
   const grip = h('button', { type: 'button', class: 'icon-btn todo-grip', 'aria-label': 'Move to-do list. Drag, or use the arrow keys.', title: 'Drag to move' }, icon('grip', { size: 14, filled: true }));
-  const head = h('div', { class: 'todo-head' }, grip, h('h2', { class: 'todo-title' }, icon('list', { size: 16 }), 'Today'), countEl, more, toggleBtn);
+  const sideBtn = h('button', { type: 'button', class: 'icon-btn todo-side', 'aria-label': 'Open in side panel (stays open on every site)', title: 'Open in side panel' }, icon('sidebar', { size: 14 }));
+  sideBtn.addEventListener('click', openSidePanel);
+  const head = panel
+    ? h('div', { class: 'todo-head' }, h('h2', { class: 'todo-title' }, icon('list', { size: 16 }), 'Today'), countEl, more)
+    : h('div', { class: 'todo-head' }, grip, h('h2', { class: 'todo-title' }, icon('list', { size: 16 }), 'Today'), countEl, sideBtn, more, toggleBtn);
   const sizer = h('button', { type: 'button', class: 'todo-resize', 'aria-label': 'Resize to-do list. Drag, or use the arrow keys.', title: 'Drag to resize' });
   toggleBtn.addEventListener('click', () => {
     collapsed = !collapsed;
@@ -189,16 +201,25 @@ export function initTodo() {
     applyCollapsed(toggleBtn, body);
     if (!collapsed) input.focus();
   });
-  el.classList.add('glass');
-  clear(el).append(head, body, sizer);
-  enableMoveResize(head, grip, sizer);
-  applyCollapsed(toggleBtn, body);
-  render();
-  on('todos', render);
-  window.addEventListener('resize', queueTodoLayout);
-  const ro = new ResizeObserver(queueTodoLayout);
-  for (const id of ['w-clock', 'w-search', 'w-shortcuts']) ro.observe(document.getElementById(id));
-  layoutTodo();
+  if (panel) {
+    // Side panel: full height, no moving/resizing/collapsing (Chrome sizes it).
+    clear(el).append(head, body);
+    render();
+    on('todos', render);
+    input.focus();
+  } else {
+    el.classList.add('glass');
+    clear(el).append(head, body, sizer);
+    enableMoveResize(head, grip, sizer);
+    applyCollapsed(toggleBtn, body);
+    render();
+    on('todos', render);
+    window.addEventListener('resize', queueTodoLayout);
+    const ro = new ResizeObserver(queueTodoLayout);
+    for (const id of ['w-clock', 'w-search', 'w-shortcuts']) ro.observe(document.getElementById(id));
+    layoutTodo();
+    chrome.windows?.getCurrent?.().then((w) => (windowId = w.id), () => {});
+  }
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       checkRollover();
@@ -214,7 +235,7 @@ const MIN_FLOAT_SPACE = 150;
 let layoutQueued = false;
 
 export function layoutTodo() {
-  if (!el || el.hidden) return;
+  if (!el || el.hidden || panelMode) return;
   // The user placed it themselves: keep their spot (clamped to the window).
   if (box().custom && canPlace()) {
     applyBox(box());
@@ -246,6 +267,27 @@ export function layoutTodo() {
   el.style.setProperty('--todo-top', `${top}px`);
   el.style.setProperty('--todo-right', `${right}px`);
   el.style.setProperty('--todo-max', `${space}px`);
+}
+
+// ------------------------------------------------------------ side panel
+
+// Open the list in Chrome's side panel, where it stays on every site.
+export async function openSidePanel() {
+  if (!chrome.sidePanel?.open) {
+    // Files were updated but the extension wasn't reloaded yet, so the new
+    // side panel permission isn't active: restart once, then reopen a tab.
+    toast('Finishing the Sequoia Tab update…');
+    await chrome.storage.local.set({ reopenAfterReload: Date.now() });
+    chrome.runtime.reload();
+    return;
+  }
+  try {
+    // Called straight from the click, so Chrome sees the user gesture.
+    await chrome.sidePanel.open(windowId != null ? { windowId } : { tabId: (await chrome.tabs.getCurrent()).id });
+  } catch (err) {
+    console.warn('[Sequoia Tab] could not open the side panel:', err?.message || err);
+    toast('Click the Sequoia Tab toolbar button (or press Ctrl+Shift+Y) to open the side panel.', { error: true });
+  }
 }
 
 // ------------------------------------------------------------ move & resize

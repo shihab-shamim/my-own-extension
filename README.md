@@ -6,6 +6,16 @@ It only changes the New Tab page. Chrome's toolbar, address bar, tabs and settin
 
 Your 10 existing New Tab shortcuts (All Plugings, My plugin, Gmail, bplugins mail, Present sheet, Freemius, ClickUp, Support Desk, Daily Workshit, mail swarm) come pre-loaded, in the same order and with the same URLs.
 
+### To-do in the side panel (v1.5)
+
+Your to-do list can also live in **Chrome's side panel**, on the right of any website. It stays open while you switch tabs and browse, and you can close it and bring it back any time:
+
+- **Open:** click the Sequoia Tab toolbar button, press **Ctrl+Shift+Y** (changeable at `chrome://extensions/shortcuts`), or use the ▯ button or ⋯ → *Open in side panel* on the New Tab to-do card.
+- **Close:** the same button or shortcut, the panel's ✕, or ⋯ → *Close side panel*.
+- It's the same list as on the New Tab. Adding, ticking, editing and deleting tasks updates both instantly.
+- It uses Chrome's own side panel (`sidePanel` permission, no install warning). Nothing is injected into websites, and it works on every page, including Chrome's own pages.
+- Pin the extension (puzzle icon → 📌) to keep the toolbar button handy.
+
 ### Real Google account info (v1.3, optional)
 
 Click the round avatar, then **Connect Google account**:
@@ -102,6 +112,7 @@ How the extension uses the API:
 | `bookmarks` | **Reads** your bookmarks bar and folders. The code never calls `create`, `update`, `move` or `remove`. Chrome's install prompt says "read and change" because it has no read-only bookmarks permission. |
 | `alarms` | Wakes the service worker to rotate wallpapers on schedule |
 | `favicon` | Shows site icons from Chrome's local favicon cache (no requests to the sites) |
+| `sidePanel` | Shows the to-do list in Chrome's side panel. No install warning |
 | `declarativeNetRequestWithHostAccess` | No install warning, and it only works on sites you granted. For the single account-list request, it sends `Origin: https://www.google.com` (exactly what Chrome's own account menu sends) instead of the extension's origin, because Google rejects (403) requests carrying an extension origin. It is limited to that one URL, POST requests and this extension's own requests |
 | `https://accounts.google.com/*` (**optional**) | Only if you click *Connect Google account*: reads your signed-in Google accounts (name, email, photo) to show them in the account card. It isn't requested at install, and *Disconnect* removes it |
 | `search` | Lets *Chrome default* search with the engine you chose in Chrome settings |

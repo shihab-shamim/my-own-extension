@@ -1,0 +1,42 @@
+/* Side panel: the to-do list filling Chrome's side panel. Builds on the
+   tokens and to-do styles in newtab.css. */
+
+:root,
+html {
+  background: rgb(var(--panel-rgb));
+}
+
+body.panel {
+  overflow: hidden;
+  color: var(--glass-fg);
+  background: rgb(var(--panel-rgb));
+}
+
+.panel-main { height: 100vh; display: flex; }
+
+.todo-card.panel-card {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  padding: 14px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.panel-card .todo-head { padding: 0 2px 4px 6px; }
+.panel-card .todo-title { font-size: 16px; }
+.panel-card .todo-body { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-top: 10px; }
+.panel-card .todo-list { flex: 1; min-height: 0; overflow-y: auto; }
+.panel-card .todo-input { height: 36px; }
+.panel-card .todo-item { min-height: 38px; }
+/* In the panel there's room to always show the per-task buttons. */
+.panel-card .todo-item .todo-act,
+.panel-card .todo-item .todo-daily[aria-pressed="false"] { opacity: 0.55; }
+.panel-card .todo-item:hover .todo-act,
+.panel-card .todo-item:focus-within .todo-act { opacity: 1; }
+
+body.panel .toasts { bottom: 16px; left: 50%; right: auto; top: auto; transform: translateX(-50%); width: calc(100% - 24px); }
+body.panel .toast { max-width: none; }
+.panel-error { padding: 16px; color: var(--glass-fg); }

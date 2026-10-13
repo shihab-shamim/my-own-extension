@@ -21,6 +21,19 @@ async function init() {
   await ensureSeeded();
   await scheduleAlarm();
   await ensureOriginRule();
+  await setupSidePanel();
+}
+
+// The toolbar button (and Ctrl+Shift+Y) opens the to-do list in Chrome's side
+// panel, which stays open on every site while you browse.
+async function setupSidePanel() {
+  if (!chrome.sidePanel) return;
+  try {
+    await chrome.sidePanel.setOptions({ path: 'sidepanel.html', enabled: true });
+    await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+  } catch (err) {
+    console.warn('[Sequoia Tab] side panel setup failed:', err?.message || err);
+  }
 }
 
 chrome.runtime.onInstalled.addListener(() => {
