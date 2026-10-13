@@ -18,6 +18,9 @@ let midnightTimer = null;
 let editingId = null;
 let panelMode = false; // true inside Chrome's side panel (sidepanel.html)
 let shortcutLabel = ''; // e.g. "Ctrl+Shift+Y", shown in the panel menu
+let overlayMode = false; // true when floating over a web page (sidepanel.html?overlay=1)
+// Ask the page's overlay container to slide the list away.
+export const hideOverlay = () => window.parent.postMessage({ type: 'sequoia:hide' }, '*');
 let windowId = null; // cached so "Open in side panel" keeps the click's user gesture
 
 try {
@@ -123,7 +126,9 @@ function menu(btn, kb) {
       { sep: true },
       ...(panelMode
         ? [
-            { label: shortcutLabel ? `Close side panel (${shortcutLabel})` : 'Close side panel', icon: icon('close', { size: 15 }), onSelect: () => window.close() },
+            overlayMode
+              ? { label: shortcutLabel ? `Hide (${shortcutLabel} or Esc)` : 'Hide (Esc)', icon: icon('close', { size: 15 }), onSelect: hideOverlay }
+              : { label: shortcutLabel ? `Close side panel (${shortcutLabel})` : 'Close side panel', icon: icon('close', { size: 15 }), onSelect: () => window.close() },
             { label: 'Change keyboard shortcut…', icon: icon('settings', { size: 15 }), onSelect: () => chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }) },
           ]
         : [
@@ -164,8 +169,9 @@ function applyCollapsed(toggleBtn, body) {
   clear(toggleBtn).append(icon(collapsed ? 'chevronDown' : 'chevronUp', { size: 14 }));
 }
 
-export function initTodo({ panel = false } = {}) {
+export function initTodo({ panel = false, overlay = false } = {}) {
   panelMode = panel;
+  overlayMode = overlay;
   checkRollover();
   scheduleMidnight();
   countEl = h('span', { class: 'todo-count', 'aria-live': 'polite' });
@@ -191,8 +197,10 @@ export function initTodo({ panel = false } = {}) {
   const grip = h('button', { type: 'button', class: 'icon-btn todo-grip', 'aria-label': 'Move to-do list. Drag, or use the arrow keys.', title: 'Drag to move' }, icon('grip', { size: 14, filled: true }));
   const sideBtn = h('button', { type: 'button', class: 'icon-btn todo-side', 'aria-label': 'Open in side panel (stays open on every site)', title: 'Open in side panel' }, icon('sidebar', { size: 14 }));
   sideBtn.addEventListener('click', openSidePanel);
+  const closeBtn = overlay ? h('button', { type: 'button', class: 'icon-btn todo-close', 'aria-label': 'Hide to-do list (Esc)', title: 'Hide (Esc)' }, icon('close', { size: 15 })) : null;
+  closeBtn?.addEventListener('click', hideOverlay);
   const head = panel
-    ? h('div', { class: 'todo-head' }, h('h2', { class: 'todo-title' }, icon('list', { size: 16 }), 'Today'), countEl, more)
+    ? h('div', { class: 'todo-head' }, h('h2', { class: 'todo-title' }, icon('list', { size: 16 }), 'Today'), countEl, more, closeBtn)
     : h('div', { class: 'todo-head' }, grip, h('h2', { class: 'todo-title' }, icon('list', { size: 16 }), 'Today'), countEl, sideBtn, more, toggleBtn);
   const sizer = h('button', { type: 'button', class: 'todo-resize', 'aria-label': 'Resize to-do list. Drag, or use the arrow keys.', title: 'Drag to resize' });
   toggleBtn.addEventListener('click', () => {

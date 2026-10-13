@@ -6,7 +6,23 @@ It only changes the New Tab page. Chrome's toolbar, address bar, tabs and settin
 
 Your 10 existing New Tab shortcuts (All Plugings, My plugin, Gmail, bplugins mail, Present sheet, Freemius, ClickUp, Support Desk, Daily Workshit, mail swarm) come pre-loaded, in the same order and with the same URLs.
 
-### To-do in the side panel (v1.5)
+### Floating to-do on any website (v1.6)
+
+On any normal website, press **Ctrl+Shift+Y** or click the Sequoia Tab toolbar button:
+
+- The to-do list **slides in from the right, floating over the page**. It takes no space and the page doesn't move or shrink.
+- Press again, press **Esc**, or click **✕** to slide it away.
+- It's the same list as on the New Tab and in the side panel; changes show everywhere instantly.
+- On pages where Chrome doesn't allow extensions (`chrome://` pages, the Chrome Web Store), the same button opens the **side panel** instead.
+
+How it stays safe:
+
+- It uses `activeTab` + `scripting`, which have no install warning. The extension can touch **only the tab where you pressed the button**, and only after you press it. There is no access to all websites and no code running on pages you don't use it on.
+- The list sits in a closed Shadow DOM and an extension iframe, so the website can't read or change your tasks. The page's styles can't break it.
+- The to-do page uses a per-session **dynamic URL**. Websites can't load it on their own or use it to detect the extension; Chrome refuses those requests.
+- After you go to another page, press the button again to show it there. That's how `activeTab` works: no permanent access.
+
+
 
 Your to-do list can also live in **Chrome's side panel**, on the right of any website. It stays open while you switch tabs and browse, and you can close it and bring it back any time:
 
@@ -114,6 +130,7 @@ How the extension uses the API:
 | `alarms` | Wakes the service worker to rotate wallpapers on schedule |
 | `favicon` | Shows site icons from Chrome's local favicon cache (no requests to the sites) |
 | `sidePanel` | Shows the to-do list in Chrome's side panel. No install warning |
+| `activeTab`, `scripting` | When you press the toolbar button / Ctrl+Shift+Y on a website, shows the floating to-do on **that tab only**. No install warning, no access to other sites |
 | `declarativeNetRequestWithHostAccess` | No install warning, and it only works on sites you granted. For the single account-list request, it sends `Origin: https://www.google.com` (exactly what Chrome's own account menu sends) instead of the extension's origin, because Google rejects (403) requests carrying an extension origin. It is limited to that one URL, POST requests and this extension's own requests |
 | `https://accounts.google.com/*` (**optional**) | Only if you click *Connect Google account*: reads your signed-in Google accounts (name, email, photo) to show them in the account card. It isn't requested at install, and *Disconnect* removes it |
 | `search` | Lets *Chrome default* search with the engine you chose in Chrome settings |

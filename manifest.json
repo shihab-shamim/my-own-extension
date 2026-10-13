@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Sequoia Tab — macOS-style New Tab",
   "short_name": "Sequoia Tab",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "A calm, macOS-inspired New Tab page with rotating wallpapers, your Chrome bookmarks, shortcuts and a dock.",
   "minimum_chrome_version": "116",
   "icons": {
@@ -19,7 +19,7 @@
     "type": "module"
   },
   "action": {
-    "default_title": "Open/close the to-do side panel (Ctrl+Shift+Y)",
+    "default_title": "Show/hide your to-do list (Ctrl+Shift+Y)",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png"
@@ -32,10 +32,12 @@
     "favicon",
     "search",
     "declarativeNetRequestWithHostAccess",
-    "sidePanel"
+    "sidePanel",
+    "activeTab",
+    "scripting"
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'self' http: https:"
   },
   "optional_host_permissions": [
     "https://accounts.google.com/*"
@@ -49,7 +51,18 @@
         "default": "Ctrl+Shift+Y",
         "mac": "Command+Shift+Y"
       },
-      "description": "Open or close the to-do side panel (toggle)"
+      "description": "Show or hide the to-do list"
     }
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "sidepanel.html"
+      ],
+      "matches": [
+        "<all_urls>"
+      ],
+      "use_dynamic_url": true
+    }
+  ]
 }

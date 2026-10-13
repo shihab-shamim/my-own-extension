@@ -5,6 +5,7 @@
 import { ensureSeeded, KEYS } from './lib/storage.js';
 import { ALARM, resolveWallpaper, scheduleAlarm, testUnsplash, clearBackoff, selectionSig } from './lib/rotation.js';
 import { ensureOriginRule } from './newtab/gaccount.js';
+import { canOverlay, toggleOverlay } from './overlay.js';
 
 const NEWTAB_PATH = '/newtab.html';
 
@@ -78,11 +79,14 @@ chrome.runtime.onConnect.addListener((port) => {
   });
 });
 
-// Open if closed, close if open — for the window the click/shortcut came from.
+// Toolbar button / Ctrl+Shift+Y:
+//  - side panel open in this window  -> close it
+//  - a normal website                -> slide the floating to-do over the page (or away)
+//  - anything else (chrome:// pages…) -> open the side panel
 // sidePanel.open() is called synchronously so Chrome sees the user's gesture.
 function togglePanel(tab) {
   const windowId = tab?.windowId;
-  if (windowId == null || !chrome.sidePanel) return;
+  if (windowId == null) return;
   const port = panelPorts.get(windowId);
   if (port) {
     panelPorts.delete(windowId);
@@ -93,10 +97,15 @@ function togglePanel(tab) {
         /* already gone */
       }
     };
-    if (chrome.sidePanel.close) chrome.sidePanel.close({ windowId }).catch(viaPanel);
+    if (chrome.sidePanel?.close) chrome.sidePanel.close({ windowId }).catch(viaPanel);
     else viaPanel();
     return;
   }
+  if (tab.id != null && canOverlay(tab.url) && chrome.scripting) {
+    toggleOverlay(tab.id).catch((err) => console.warn('[Sequoia Tab] could not show the floating to-do:', err?.message || err));
+    return;
+  }
+  if (!chrome.sidePanel) return;
   chrome.sidePanel.open({ windowId }).catch((err) => console.warn('[Sequoia Tab] could not open the side panel:', err?.message || err));
 }
 self.__sequoiaTogglePanel = togglePanel; // used by the automated tests

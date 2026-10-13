@@ -168,7 +168,7 @@ const overlap = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bott
   check('Settings: Google bar can be hidden and the bookmarks bar takes the space back', hidden.g && hidden.bRight <= 20, JSON.stringify(hidden));
 
   const manifest = await page.evaluate(() => chrome.runtime.getManifest());
-  check('Permissions: only the expected list (no install warnings added)', JSON.stringify(manifest.permissions) === JSON.stringify(['storage', 'bookmarks', 'alarms', 'favicon', 'search', 'declarativeNetRequestWithHostAccess', 'sidePanel']) && !manifest.host_permissions, JSON.stringify(manifest.permissions));
+  check('Permissions: only the expected list (no install warnings added)', JSON.stringify(manifest.permissions) === JSON.stringify(['storage', 'bookmarks', 'alarms', 'favicon', 'search', 'declarativeNetRequestWithHostAccess', 'sidePanel', 'activeTab', 'scripting']) && !manifest.host_permissions, JSON.stringify(manifest.permissions));
   const relevant = errors.filter((e) => !/net::ERR_ABORTED|ERR_NAME_NOT_RESOLVED/.test(e));
   check('No console errors', relevant.length === 0, relevant.join('\n'));
   const failed = results.filter((r) => !r.pass);

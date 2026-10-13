@@ -3,7 +3,7 @@
   "private": true,
   "description": "End-to-end tests for Sequoia Tab (runs in Chrome for Testing via Puppeteer)",
   "scripts": {
-    "test": "node e2e.js && node features.js && node gbar.js && node gaccount.js && node todo-layout.js && node sidepanel.js"
+    "test": "node e2e.js && node features.js && node gbar.js && node gaccount.js && node todo-layout.js && node sidepanel.js && node overlay.js"
   },
   "devDependencies": {
     "puppeteer": "^24.0.0"

@@ -3,7 +3,7 @@
 // chrome.storage, so both views update each other live.
 
 import { store, load, on } from '../newtab/store.js';
-import { initTodo } from '../newtab/todo.js';
+import { initTodo, hideOverlay } from '../newtab/todo.js';
 
 const root = document.documentElement;
 const media = {
@@ -36,13 +36,32 @@ function connectToWorker() {
   return port;
 }
 
+// ?overlay=1: floating over a web page (see src/overlay.js) instead of in the side panel.
+const overlay = new URLSearchParams(location.search).has('overlay');
+
+function setupOverlay() {
+  root.dataset.overlay = '1';
+  // Esc hides the floating list (menus/editing handle their own Esc first).
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !e.defaultPrevented) {
+      e.preventDefault();
+      hideOverlay();
+    }
+  });
+  // When it slides in again, put the cursor in the "Add a task" box.
+  window.addEventListener('message', (e) => {
+    if (e.source === window.parent && e.data?.type === 'sequoia:shown') document.querySelector('.todo-input')?.focus();
+  });
+}
+
 async function main() {
+  if (overlay) setupOverlay();
   windowId = (await chrome.windows.getCurrent()).id;
   // Only the real side panel registers (opened as a normal tab, getCurrent() returns a tab).
   if (!(await chrome.tabs.getCurrent())) connectToWorker();
   await load();
   applyTheme();
-  initTodo({ panel: true });
+  initTodo({ panel: true, overlay });
   on('settings', applyTheme);
   media.dark.addEventListener('change', applyTheme);
   media.reduce.addEventListener('change', applyTheme);

@@ -40,3 +40,8 @@ body.panel {
 body.panel .toasts { bottom: 16px; left: 50%; right: auto; top: auto; transform: translateX(-50%); width: calc(100% - 24px); }
 body.panel .toast { max-width: none; }
 .panel-error { padding: 16px; color: var(--glass-fg); }
+
+/* Floating over a web page: the page draws the rounded card around us. */
+:root[data-overlay] body.panel { background: rgb(var(--panel-rgb)); }
+:root[data-overlay] .todo-card.panel-card { padding-top: 12px; }
+.todo-close { margin-left: 2px; }
