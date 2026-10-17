@@ -4,7 +4,7 @@ A lightweight Manifest V3 extension that replaces Chrome's New Tab page with a c
 
 It only changes the New Tab page. Chrome's toolbar, address bar, tabs and settings are untouched, and the extension never modifies your bookmarks, history, passwords or browser settings.
 
-Your 10 existing New Tab shortcuts (All Plugings, My plugin, Gmail, bplugins mail, Present sheet, Freemius, ClickUp, Support Desk, Daily Workshit, mail swarm) come pre-loaded, in the same order and with the same URLs.
+Your 10 existing New Tab shortcuts (All Plugings, My plugin, Gmail, bplugins mail, Present sheet, Freemius, ClickUp, Support Desk, Daily Workshit, mail swarm) come pre-loaded, in the same order and with the same URL.
 
 ### Floating to-do on any website (v1.6)
 
